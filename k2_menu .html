@@ -1,0 +1,998 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>K2 Menu</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap');
+:root{
+  --a:#4a9eff;--bg:#111318;--bg2:#0d0f13;--bg3:#181b22;
+  --sel:#1a2d4a;--border:#1e2228;--text:#c8ccd8;--muted:#4a5068;
+  --hdr:#152847;
+}
+*{margin:0;padding:0;box-sizing:border-box;}
+html,body{width:100vw;height:100vh;overflow:hidden;background:transparent;font-family:'Inter',sans-serif;font-size:11px;color:var(--text);-webkit-font-smoothing:antialiased;}
+#snow{position:fixed;inset:0;pointer-events:none;z-index:0;}
+#alerts{position:fixed;top:10px;left:10px;z-index:500;display:flex;flex-direction:column;gap:4px;width:200px;pointer-events:none;}
+.alert{display:flex;align-items:center;gap:6px;padding:4px 8px;background:rgba(13,15,19,0.96);border:1px solid var(--border);border-left:2px solid var(--a);border-radius:3px;font-size:9px;font-family:monospace;animation:aIn .2s ease both;color:var(--text);}
+.alert.ok{border-left-color:#2ecc71;}.alert.warn{border-left-color:#f39c12;}.alert.err{border-left-color:#e74c3c;}.alert.troll{border-left-color:#e67e22;}
+@keyframes aIn{from{opacity:0;transform:translateX(-8px)}to{opacity:1;transform:none}}
+@keyframes aOut{from{opacity:1}to{opacity:0;transform:translateX(-8px)}}
+.alert.removing{animation:aOut .2s ease both;}
+#menu{position:fixed;inset:0;pointer-events:none;opacity:0;transition:opacity .15s;z-index:200;}
+#menu.open{opacity:1;pointer-events:all;}
+.shell{position:absolute;top:18px;left:18px;display:flex;border:1px solid var(--border);border-radius:4px;overflow:hidden;box-shadow:0 8px 32px rgba(0,0,0,.85);animation:mIn .2s ease both;max-height:calc(100vh - 36px);}
+@keyframes mIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+.rail{width:36px;background:var(--bg2);border-right:1px solid var(--border);display:flex;flex-direction:column;align-items:center;padding:7px 0 5px;gap:1px;flex-shrink:0;}
+.rail-logo{font-size:8px;font-weight:700;color:var(--a);letter-spacing:1px;margin-bottom:5px;padding-bottom:5px;width:100%;text-align:center;border-bottom:1px solid var(--border);}
+.ri{width:24px;height:24px;border-radius:3px;display:flex;align-items:center;justify-content:center;font-size:11px;cursor:pointer;transition:background .1s;color:var(--muted);position:relative;}
+.ri:hover{background:var(--bg3);}.ri.on{background:var(--sel);}
+.ri.on::before{content:'';position:absolute;left:0;top:50%;transform:translateY(-50%);width:2px;height:11px;background:var(--a);border-radius:0 2px 2px 0;}
+.ri-tip{position:absolute;left:30px;background:var(--bg3);border:1px solid var(--border);color:var(--text);font-size:8px;font-weight:600;padding:2px 6px;border-radius:3px;white-space:nowrap;pointer-events:none;opacity:0;transition:opacity .1s;z-index:99;font-family:monospace;}
+.ri:hover .ri-tip{opacity:1;}
+.rsep{width:18px;height:1px;background:var(--border);margin:3px 0;}
+.ri-bot{margin-top:auto;}
+.sdot{position:absolute;top:2px;right:2px;width:4px;height:4px;border-radius:50%;background:var(--a);}
+.cat{width:135px;background:var(--bg);border-right:1px solid var(--border);display:flex;flex-direction:column;flex-shrink:0;}
+.cat-hdr{padding:5px 8px 4px;border-bottom:1px solid var(--border);background:var(--hdr);flex-shrink:0;}
+.cat-hdr-lbl{font-size:7px;font-weight:600;letter-spacing:2px;color:rgba(255,255,255,.35);text-transform:uppercase;}
+.cat-hdr-name{font-size:10.5px;font-weight:600;color:#fff;margin-top:1px;}
+.cat-body{flex:1;overflow-y:auto;}
+.cat-body::-webkit-scrollbar{width:2px;}.cat-body::-webkit-scrollbar-thumb{background:#1e2228;}
+.ci{display:flex;align-items:center;gap:5px;padding:5px 8px;cursor:pointer;transition:background .08s;border-bottom:1px solid rgba(255,255,255,.03);position:relative;}
+.ci:hover,.ci.on{background:var(--sel);}
+.ci.on::after{content:'';position:absolute;left:0;top:0;bottom:0;width:2px;background:var(--a);}
+.ci-ic{font-size:10px;width:12px;text-align:center;flex-shrink:0;}
+.ci-n{font-size:10px;font-weight:400;color:var(--muted);}
+.ci:hover .ci-n,.ci.on .ci-n{color:var(--text);}
+.ci-arr{margin-left:auto;font-size:8px;color:var(--muted);}
+.ci:hover .ci-arr,.ci.on .ci-arr{color:var(--a);}
+.items{width:172px;background:var(--bg2);border-right:1px solid var(--border);display:flex;flex-direction:column;flex-shrink:0;overflow:hidden;}
+.items-hdr{padding:5px 8px 4px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:5px;background:var(--bg3);flex-shrink:0;}
+.items-back{width:13px;height:13px;border-radius:2px;background:var(--border);display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:9px;color:var(--muted);}
+.items-back:hover{color:var(--text);}
+.items-title{font-size:9.5px;font-weight:500;color:var(--text);}
+.items-body{flex:1;overflow-y:auto;}
+.items-body::-webkit-scrollbar{width:2px;}.items-body::-webkit-scrollbar-thumb{background:#1e2228;}
+.sec-lbl{font-size:7px;font-weight:600;letter-spacing:2px;color:var(--muted);text-transform:uppercase;padding:6px 8px 3px;}
+.li{display:flex;align-items:center;justify-content:space-between;padding:4.5px 8px;cursor:pointer;transition:background .08s;border-bottom:1px solid rgba(255,255,255,.025);position:relative;}
+.li:hover,.li.on{background:var(--sel);}
+.li.on::before{content:'';position:absolute;left:0;top:0;bottom:0;width:2px;background:var(--a);}
+.li-l{display:flex;align-items:center;gap:5px;}
+.li-n{font-size:9.5px;font-weight:400;color:var(--muted);}
+.li:hover .li-n,.li.on .li-n{color:var(--text);}
+.badge{font-size:7px;font-weight:600;font-family:monospace;padding:1px 4px;border-radius:2px;}
+.bc{background:rgba(74,158,255,.15);color:#4a9eff;}.bg2{background:rgba(46,204,113,.12);color:#2ecc71;}
+.bo{background:rgba(243,156,18,.12);color:#f39c12;}.br{background:rgba(231,76,60,.12);color:#e74c3c;}
+.bp{background:rgba(155,89,182,.12);color:#9b59b6;}.bor{background:rgba(230,126,34,.12);color:#e67e22;}
+.bgr{background:rgba(255,255,255,.06);color:#555;}
+.li-arr{font-size:8px;color:var(--muted);}
+.li:hover .li-arr,.li.on .li-arr{color:var(--a);}
+.sw{width:22px;height:11px;border-radius:6px;background:var(--border);position:relative;cursor:pointer;transition:background .15s;flex-shrink:0;}
+.sw.on{background:rgba(74,158,255,.4);}
+.sw::after{content:'';position:absolute;top:2px;left:2px;width:7px;height:7px;border-radius:50%;background:var(--muted);transition:all .15s;}
+.sw.on::after{left:13px;background:var(--a);}
+.preview{width:160px;background:var(--bg);display:flex;flex-direction:column;overflow:hidden;}
+.prev-hdr{padding:5px 8px 4px;border-bottom:1px solid var(--border);background:var(--bg3);flex-shrink:0;display:flex;align-items:center;justify-content:space-between;}
+.prev-name{font-size:9.5px;font-weight:600;color:var(--text);}
+.prev-tag{font-size:7px;font-weight:700;font-family:monospace;color:var(--a);background:rgba(74,158,255,.1);border:1px solid rgba(74,158,255,.2);padding:1px 4px;border-radius:2px;}
+.prev-body{flex:1;padding:7px;display:flex;flex-direction:column;gap:6px;overflow-y:auto;}
+.prev-body::-webkit-scrollbar{width:2px;}.prev-body::-webkit-scrollbar-thumb{background:#1e2228;}
+.vcard{background:var(--bg3);border:1px solid var(--border);border-radius:3px;overflow:hidden;}
+.vimg{height:68px;background:linear-gradient(180deg,#131620,#0d0f13);display:flex;align-items:center;justify-content:center;}
+.vem{font-size:34px;filter:drop-shadow(0 2px 8px rgba(74,158,255,.2));animation:fl 3s ease-in-out infinite;}
+@keyframes fl{0%,100%{transform:translateY(0)}50%{transform:translateY(-4px)}}
+.vinf{padding:5px 7px;}
+.vname{font-size:9.5px;font-weight:600;color:var(--text);}
+.vmeta{font-size:7.5px;color:var(--muted);margin:1px 0 4px;}
+.stat{display:flex;align-items:center;gap:4px;margin-bottom:2px;}
+.sl{font-size:7px;font-weight:600;color:var(--muted);width:34px;text-transform:uppercase;letter-spacing:.5px;}
+.sb{flex:1;height:2px;background:var(--bg);border-radius:1px;overflow:hidden;}
+.sf{height:100%;border-radius:1px;background:var(--a);transition:width .3s;}
+.sv{font-size:7.5px;font-family:monospace;color:var(--muted);width:16px;text-align:right;}
+.spbtn{padding:4px;width:100%;background:rgba(74,158,255,.08);border:1px solid rgba(74,158,255,.2);border-radius:3px;font-size:8px;font-weight:600;color:var(--a);cursor:pointer;text-align:center;font-family:monospace;letter-spacing:1px;transition:all .12s;}
+.spbtn:hover{background:rgba(74,158,255,.15);}
+.icard{text-align:center;display:flex;flex-direction:column;align-items:center;gap:4px;}
+.ic-icon{font-size:26px;opacity:.4;}.ic-name{font-size:9.5px;font-weight:600;color:var(--text);}.ic-sub{font-size:7.5px;color:var(--muted);}
+.ic-btn{padding:4px 10px;background:rgba(74,158,255,.08);border:1px solid rgba(74,158,255,.2);border-radius:3px;font-size:8px;font-weight:600;color:var(--a);cursor:pointer;font-family:monospace;letter-spacing:.5px;transition:all .12s;}
+.ic-btn:hover{background:rgba(74,158,255,.15);}
+.tgrid{display:flex;flex-direction:column;gap:3px;width:100%;}
+.trow{display:flex;align-items:center;justify-content:space-between;padding:4px 6px;background:var(--bg3);border:1px solid var(--border);border-radius:3px;}
+.tn{font-size:9px;font-weight:500;color:var(--muted);}
+.srow{display:flex;align-items:center;justify-content:space-between;padding:4px 6px;background:var(--bg3);border:1px solid var(--border);border-radius:3px;margin-bottom:3px;}
+.srow-l{font-size:9px;color:var(--muted);}.srow-v{font-size:9px;font-family:monospace;color:var(--a);}
+.keys{position:fixed;bottom:0;left:0;right:0;height:18px;background:var(--bg2);border-top:1px solid var(--border);display:flex;align-items:center;justify-content:center;gap:14px;opacity:0;transition:opacity .15s;z-index:300;}
+#menu.open ~ .keys{opacity:1;}
+.kk{display:flex;align-items:center;gap:3px;font-size:7px;color:var(--muted);font-family:monospace;}
+.kk kbd{background:var(--bg3);border:1px solid var(--border);border-radius:2px;padding:0 4px;font-size:7px;color:var(--text);font-family:monospace;}
+.sld{animation:sld .12s ease both;}
+@keyframes sld{from{opacity:0;transform:translateX(5px)}to{opacity:1;transform:none}}
+</style>
+</head>
+<body>
+<canvas id="snow"></canvas>
+
+<!-- Alerts -->
+<div id="alerts"></div>
+
+<!-- HUD -->
+<div id="hud">
+  <div class="hud-row">
+    <span class="hud-label">HP</span>
+    <div class="hud-bar"><div class="hud-fill" id="hud-hp" style="width:100%;background:#00ff88;"></div></div>
+    <span class="hud-val" id="hud-hp-v">200</span>
+  </div>
+  <div class="hud-row">
+    <span class="hud-label">ARM</span>
+    <div class="hud-bar"><div class="hud-fill" id="hud-arm" style="width:100%;background:#00c3ff;"></div></div>
+    <span class="hud-val" id="hud-arm-v">100</span>
+  </div>
+  <div class="hud-row" id="hud-speed-row" style="display:none">
+    <span class="hud-label">SPD</span>
+    <div class="hud-bar"><div class="hud-fill" id="hud-spd" style="width:0%;background:#ffc800;"></div></div>
+    <span class="hud-val" id="hud-spd-v">0</span>
+  </div>
+  <div class="hud-feats" id="hud-feats"></div>
+</div>
+
+<!-- Menu -->
+<div id="menu">
+  <div class="shell">
+
+    <!-- Rail -->
+    <nav class="rail" id="rail">
+      <div class="rail-logo">K2</div>
+      <div class="ri on" data-nav="vehicle">🚗<span class="ri-tip">VEHICLE</span></div>
+      <div class="ri" data-nav="teleport">🗺️<span class="ri-tip">TELEPORT</span></div>
+      <div class="ri" data-nav="weapons">🔫<span class="ri-tip">WEAPONS</span></div>
+      <div class="ri" data-nav="player">❤️<span class="ri-tip">PLAYER</span></div>
+      <div class="ri" data-nav="weather">🌤️<span class="ri-tip">WEATHER</span></div>
+      <div class="ri" data-nav="abilities">🛡️<span class="ri-tip">ABILITIES</span></div>
+      <div class="ri" data-nav="esp">👁️<span class="ri-tip">ESP</span></div>
+      <div class="ri" data-nav="troll">😈<span class="ri-tip">TROLL</span></div>
+      <div class="ri" data-nav="anims">🎭<span class="ri-tip">ANIMS</span></div>
+      <div class="ri" data-nav="server">🖥️<span class="ri-tip">SERVER</span></div>
+      <div class="rsep"></div>
+      <div class="ri" data-nav="esx">🟣<span class="ri-tip">ESX</span><span class="sec-dot"></span></div>
+      <div class="ri" data-nav="qb">🟡<span class="ri-tip">QBCORE</span><span class="sec-dot" style="background:#ffc800;box-shadow:0 0 4px #ffc800"></span></div>
+      <div class="rsep"></div>
+      <div class="ri ri-bot" data-nav="settings">⚙️<span class="ri-tip">SETTINGS</span></div>
+    </nav>
+
+    <!-- Cat Panel -->
+    <div class="cat">
+      <div class="cat-hdr">
+        <div class="cat-lbl" id="cat-lbl">CATEGORY</div>
+        <div class="cat-name" id="cat-name">Vehicle</div>
+      </div>
+      <div class="cat-body" id="cat-body"></div>
+    </div>
+
+    <!-- Items Panel -->
+    <div class="items">
+      <div class="items-hdr">
+        <div class="items-back" id="items-back">‹</div>
+        <div class="items-title" id="items-title">—</div>
+      </div>
+      <div class="items-body" id="items-body"></div>
+    </div>
+
+    <!-- Preview Panel -->
+    <div class="preview">
+      <div class="prev-hdr">
+        <div class="prev-hl">
+          <div class="prev-lbl">PREVIEW</div>
+          <div class="prev-name" id="prev-name">—</div>
+        </div>
+        <div class="prev-tag" id="prev-tag">INFO</div>
+      </div>
+      <div class="prev-body" id="prev-body"></div>
+    </div>
+
+  </div>
+</div>
+
+<!-- Keys bar -->
+<div class="keys-bar">
+  <div class="kk"><kbd>↑↓</kbd> Navigate</div>
+  <div class="kk"><kbd>ENTER</kbd> Select</div>
+  <div class="kk"><kbd>BACK</kbd> Return</div>
+  <div class="kk"><kbd>←→</kbd> Value</div>
+  <div class="kk"><kbd>INSERT</kbd> Toggle</div>
+  <div class="kk"><kbd>F6</kbd> Close</div>
+</div>
+
+<script>
+// ══ SNOW ══
+const cv=document.getElementById('snow');
+const cx=cv.getContext('2d');
+let W,H,fl=[];
+function rsz(){W=cv.width=innerWidth;H=cv.height=innerHeight;}
+rsz();addEventListener('resize',rsz);
+for(let i=0;i<70;i++)fl.push({x:Math.random()*1920,y:Math.random()*1080,r:Math.random()*1.5+.3,s:Math.random()*.4+.1,d:(Math.random()-.5)*.18,a:Math.random()*.28+.05});
+(function loop(){
+  cx.clearRect(0,0,W,H);
+  fl.forEach(f=>{
+    cx.beginPath();cx.arc(f.x,f.y,f.r,0,Math.PI*2);
+    cx.fillStyle=`rgba(255,255,255,${f.a})`;cx.fill();
+    f.y+=f.s;f.x+=f.d;
+    if(f.y>H+4){f.y=-4;f.x=Math.random()*W;}
+    if(f.x<0)f.x=W;if(f.x>W)f.x=0;
+  });
+  requestAnimationFrame(loop);
+})();
+
+// ══ ALERT SYSTEM ══
+let alertId=0;
+function addAlert(text,type='info'){
+  const panel=document.getElementById('alerts');
+  const id=++alertId;
+  const now=new Date();
+  const time=now.getHours().toString().padStart(2,'0')+':'+now.getMinutes().toString().padStart(2,'0')+':'+now.getSeconds().toString().padStart(2,'0');
+  const colors={info:'#00c3ff',ok:'#00ff88',warn:'#ffc800',err:'#ff4444',troll:'#ff9000'};
+  const el=document.createElement('div');
+  el.className=`alert ${type}`;
+  el.id='al-'+id;
+  el.innerHTML=`<div class="a-dot" style="background:${colors[type]||colors.info};box-shadow:0 0 5px ${colors[type]||colors.info}"></div><div class="a-text">${text}</div><div class="a-time">${time}</div>`;
+  panel.appendChild(el);
+  setTimeout(()=>{
+    const e=document.getElementById('al-'+id);
+    if(e){e.classList.add('removing');setTimeout(()=>e.remove(),220);}
+  },7000);
+}
+
+// ══ NAV DATA ══
+const NAV={
+  vehicle:{name:'Vehicle',lbl:'TRANSPORT',cats:[
+    {ic:'🏎️',n:'Vanilla Vehicles',k:'vanilla'},
+    {ic:'🚗', n:'Server Vehicles', k:'sveh'},
+    {ic:'✏️', n:'Spawn by Name',   k:'spawner'},
+    {ic:'🔧', n:'Vehicle Mods',    k:'mods'},
+    {ic:'🎨', n:'Car Paint',       k:'paint'},
+    {ic:'💡', n:'Neon Lights',     k:'neon'},
+    {ic:'🔄', n:'Fix & Repair',    k:'fix'},
+    {ic:'🚁', n:'Aircraft',        k:'air'},
+    {ic:'🏍️', n:'Motorcycles',     k:'moto'},
+  ]},
+  teleport:{name:'Teleport',lbl:'MOVEMENT',cats:[
+    {ic:'🗺️',n:'Waypoint',         k:'tp_wp'},
+    {ic:'📍', n:'Saved Locations', k:'tp_saved'},
+    {ic:'👤', n:'To Player',       k:'tp_player'},
+    {ic:'🏙️', n:'City Spots',     k:'tp_city'},
+    {ic:'🔁', n:'TP History',      k:'tp_hist'},
+  ]},
+  weapons:{name:'Weapons',lbl:'ARSENAL',cats:[
+    {ic:'🔫',n:'Handguns',    k:'w_hand'},
+    {ic:'🔫',n:'SMGs',        k:'w_smg'},
+    {ic:'🔫',n:'Rifles',      k:'w_rifles'},
+    {ic:'🔭',n:'Sniper',      k:'w_sniper'},
+    {ic:'💣',n:'Explosives',  k:'w_explo'},
+    {ic:'🔪',n:'Melee',       k:'w_melee'},
+    {ic:'📦',n:'Loadout Presets',k:'w_load'},
+    {ic:'⚙️',n:'Weapon Extras', k:'w_extra'},
+  ]},
+  player:{name:'Player',lbl:'SELF',cats:[
+    {ic:'❤️',n:'Health & Armor',  k:'p_health'},
+    {ic:'⭐',n:'Wanted Level',    k:'p_wanted'},
+    {ic:'🔁', n:'Loop Actions',   k:'p_loops'},
+    {ic:'👤', n:'Ped Model',      k:'p_model'},
+    {ic:'🏃', n:'Movement',       k:'p_move'},
+    {ic:'🎭', n:'Misc',           k:'p_misc'},
+  ]},
+  weather:{name:'Weather',lbl:'WORLD',cats:[
+    {ic:'🌦️',n:'Weather Type',   k:'wx_type'},
+    {ic:'🕐', n:'Time Control',  k:'wx_time'},
+    {ic:'🌊', n:'World',         k:'wx_world'},
+  ]},
+  abilities:{name:'Abilities',lbl:'POWERS',cats:[
+    {ic:'🛡️',n:'God & Protection',k:'ab_god'},
+    {ic:'🚀', n:'Noclip',         k:'ab_noclip'},
+    {ic:'👻', n:'Stealth',        k:'ab_stealth'},
+    {ic:'🎯', n:'Aimbot',         k:'ab_aim'},
+    {ic:'⚡', n:'Super Powers',   k:'ab_super'},
+  ]},
+  esp:{name:'ESP & Radar',lbl:'VISION',cats:[
+    {ic:'👁️',n:'Player ESP',    k:'esp_ply'},
+    {ic:'🚗', n:'Vehicle ESP',  k:'esp_veh'},
+    {ic:'📡', n:'Radar & Blips',k:'esp_radar'},
+    {ic:'🔔', n:'Alert System', k:'esp_alerts'},
+  ]},
+  troll:{name:'Trolling',lbl:'FUN',cats:[
+    {ic:'😈',n:'Player Troll',   k:'tr_player'},
+    {ic:'💥', n:'Explosions',    k:'tr_explo'},
+    {ic:'🚗', n:'Vehicle Troll', k:'tr_veh'},
+    {ic:'🌍', n:'World Chaos',   k:'tr_world'},
+  ]},
+  anims:{name:'Animations',lbl:'EMOTES',cats:[
+    {ic:'🎭',n:'Gestures',  k:'an_gest'},
+    {ic:'💃', n:'Emotes',   k:'an_emote'},
+    {ic:'🕺', n:'Dances',   k:'an_dance'},
+    {ic:'🏋️', n:'Actions',  k:'an_act'},
+  ]},
+  server:{name:'Server',lbl:'NETWORK',cats:[
+    {ic:'👥', n:'Players',       k:'sv_players'},
+    {ic:'📊', n:'Server Info',   k:'sv_info'},
+    {ic:'🚗', n:'Server Veh',    k:'sv_veh'},
+    {ic:'🗺️', n:'Server Locs',  k:'sv_locs'},
+  ]},
+  esx:{name:'ESX',lbl:'FRAMEWORK',cats:[
+    {ic:'💰',n:'Cash',          k:'esx_cash'},
+    {ic:'🏦', n:'Bank',         k:'esx_bank'},
+    {ic:'🎭', n:'Job',          k:'esx_job'},
+    {ic:'🎒', n:'Open Bag',     k:'esx_bag'},
+    {ic:'💊', n:'Items',        k:'esx_items'},
+    {ic:'🚔', n:'Police Tools', k:'esx_police'},
+    {ic:'⚙️', n:'Admin',        k:'esx_admin'},
+  ]},
+  qb:{name:'QBCore / CFW',lbl:'FRAMEWORK',cats:[
+    {ic:'💰',n:'Cash',           k:'qb_cash'},
+    {ic:'🏦', n:'Bank',          k:'qb_bank'},
+    {ic:'🪙', n:'Crypto',        k:'qb_crypto'},
+    {ic:'🎭', n:'Job',           k:'qb_job'},
+    {ic:'🎒', n:'Open Bag',      k:'qb_bag'},
+    {ic:'💊', n:'Items',         k:'qb_items'},
+    {ic:'🔑', n:'Keys',          k:'qb_keys'},
+    {ic:'📱', n:'Phone',         k:'qb_phone'},
+    {ic:'⚙️', n:'Admin',         k:'qb_admin'},
+  ]},
+  settings:{name:'Settings',lbl:'CONFIG',cats:[
+    {ic:'🎨',n:'Theme',           k:'cfg_theme'},
+    {ic:'📐', n:'Position',       k:'cfg_pos'},
+    {ic:'🔔', n:'Alerts Config',  k:'cfg_alerts'},
+    {ic:'📊', n:'HUD Toggle',     k:'cfg_hud'},
+    {ic:'💾', n:'Save Config',    k:'cfg_save'},
+  ]},
+};
+
+// ══ ITEMS DATA ══
+const ITEMS={
+  vanilla:{title:'Vanilla Vehicles',type:'vehicles',items:[
+    {n:'Zentorno',   em:'🏎️',cl:'Super',   sp:92,ac:85,ha:78, action:'spawn:zentorno'},
+    {n:'T20',        em:'🚗',cl:'Super',   sp:94,ac:88,ha:80, action:'spawn:t20'},
+    {n:'Adder',      em:'🚗',cl:'Super',   sp:95,ac:82,ha:72, action:'spawn:adder'},
+    {n:'Entity XF',  em:'🏎️',cl:'Super',   sp:90,ac:84,ha:76, action:'spawn:entityxf'},
+    {n:'Pariah',     em:'🏎️',cl:'Super',   sp:96,ac:90,ha:82, action:'spawn:pariah'},
+    {n:'Elegy RH8',  em:'🚘',cl:'Sports',  sp:82,ac:80,ha:85, action:'spawn:elegy'},
+    {n:'Sultan RS',  em:'🚗',cl:'Sports',  sp:78,ac:75,ha:86, action:'spawn:sultanrs'},
+    {n:'Comet S2',   em:'🚘',cl:'Sports',  sp:84,ac:78,ha:83, action:'spawn:comet5'},
+    {n:'Gauntlet',   em:'🚙',cl:'Muscle',  sp:74,ac:72,ha:65, action:'spawn:gauntlet'},
+    {n:'Vigero',     em:'🚙',cl:'Muscle',  sp:72,ac:70,ha:62, action:'spawn:vigero'},
+  ]},
+  sveh:{title:'Server Vehicles',type:'vehicles',items:[
+    {n:'Bugatti Chiron',   em:'🏎️',cl:'Server',sp:99,ac:96,ha:88, b:'NEW',bc:'bc', action:'spawn:chiron'},
+    {n:'Lamborghini SVJ',  em:'🏎️',cl:'Server',sp:97,ac:94,ha:90, b:'NEW',bc:'bc', action:'spawn:lambo'},
+    {n:'Ferrari SF90',     em:'🏎️',cl:'Server',sp:98,ac:95,ha:86, b:'HOT',bc:'br', action:'spawn:sf90'},
+    {n:'Nissan GTR R35',   em:'🚗',cl:'Server',sp:88,ac:90,ha:92, b:'HOT',bc:'br', action:'spawn:gtr'},
+    {n:'Toyota Supra MK4', em:'🚗',cl:'Server',sp:85,ac:88,ha:89, action:'spawn:supra'},
+    {n:'BMW M4 G82',       em:'🚗',cl:'Server',sp:84,ac:86,ha:87, action:'spawn:m4'},
+  ]},
+  mods:{title:'Vehicle Mods',type:'list',secs:[
+    {l:'PERFORMANCE',items:[
+      {n:'Engine',       b:'›',bc:'bc', action:'mod:engine'},
+      {n:'Transmission', b:'›',bc:'bc', action:'mod:trans'},
+      {n:'Brakes',       b:'›',bc:'bc', action:'mod:brakes'},
+      {n:'Suspension',   b:'›',bc:'bc', action:'mod:susp'},
+      {n:'Armor',        b:'›',bc:'bc', action:'mod:armor'},
+      {n:'Turbo',        tog:true,      action:'toggle:turbo'},
+      {n:'MAX EVERYTHING', b:'MAX',bc:'bo', action:'max'},
+      {n:'Repair Vehicle', b:'FIX',bc:'bg2',action:'repair'},
+      {n:'Fix Flipped',    b:'FIX',bc:'bc', action:'flip'},
+    ]}
+  ]},
+  paint:{title:'Car Paint',type:'list',secs:[
+    {l:'COLORS',items:[
+      {n:'Red',     action:'paint:220,0,0'},
+      {n:'Blue',    action:'paint:0,100,255'},
+      {n:'Black',   action:'paint:0,0,0'},
+      {n:'White',   action:'paint:255,255,255'},
+      {n:'Gold',    action:'paint:255,190,0'},
+      {n:'Green',   action:'paint:0,200,80'},
+      {n:'Orange',  action:'paint:255,110,0'},
+      {n:'Silver',  action:'paint:180,185,195'},
+      {n:'Purple',  action:'paint:140,40,220'},
+      {n:'Random',  b:'RND',bc:'bp', action:'paint:rnd'},
+    ]}
+  ]},
+  neon:{title:'Neon Lights',type:'list',secs:[
+    {l:'NEON',items:[
+      {n:'Cyan',    b:'●',bc:'bc',  action:'neon:0,195,255'},
+      {n:'Red',     b:'●',bc:'br',  action:'neon:255,0,50'},
+      {n:'Gold',    b:'●',bc:'bo',  action:'neon:255,200,0'},
+      {n:'Green',   b:'●',bc:'bg2', action:'neon:0,255,100'},
+      {n:'Purple',  b:'●',bc:'bp',  action:'neon:160,0,255'},
+      {n:'White',   action:'neon:255,255,255'},
+      {n:'Random',  b:'RND',bc:'bc',action:'neon:rnd'},
+      {n:'Neon OFF',b:'OFF',bc:'bgr',action:'neon:off'},
+    ]}
+  ]},
+  fix:{title:'Fix & Repair',type:'list',secs:[
+    {l:'VEHICLE',items:[
+      {n:'Repair Vehicle',   b:'FIX',bc:'bg2',action:'repair'},
+      {n:'Fix Flipped',      b:'FIX',bc:'bc', action:'flip'},
+      {n:'Flip Proof ON/OFF',tog:true,         action:'toggle:flipproof'},
+      {n:'Vehicle God Mode', tog:true,         action:'toggle:vehgod'},
+      {n:'Persist Vehicle',  b:'SET',bc:'bc', action:'persist'},
+    ]}
+  ]},
+  air:{title:'Aircraft',type:'vehicles',items:[
+    {n:'Buzzard Attack',em:'🚁',cl:'Aircraft',sp:80,ac:0,ha:0,action:'spawn:buzzard2'},
+    {n:'Hunter',        em:'🚁',cl:'Aircraft',sp:90,ac:0,ha:0,action:'spawn:hunter'},
+    {n:'Hydra',         em:'✈️',cl:'Aircraft',sp:95,ac:0,ha:0,action:'spawn:hydra'},
+    {n:'Lazer',         em:'✈️',cl:'Aircraft',sp:95,ac:0,ha:0,action:'spawn:lazer'},
+    {n:'Savage',        em:'🚁',cl:'Aircraft',sp:88,ac:0,ha:0,action:'spawn:savage'},
+    {n:'Maverick',      em:'🚁',cl:'Aircraft',sp:72,ac:0,ha:0,action:'spawn:maverick'},
+  ]},
+  moto:{title:'Motorcycles',type:'vehicles',items:[
+    {n:'Oppressor Mk2',em:'🏍️',cl:'Moto',sp:90,ac:86,ha:82,action:'spawn:oppressor2'},
+    {n:'Hakuchou',     em:'🏍️',cl:'Moto',sp:86,ac:82,ha:76,action:'spawn:hakuchou'},
+    {n:'Bati 801',     em:'🏍️',cl:'Moto',sp:84,ac:82,ha:76,action:'spawn:bati'},
+    {n:'Shotaro',      em:'🏍️',cl:'Moto',sp:88,ac:84,ha:80,action:'spawn:shotaro'},
+    {n:'PCJ-600',      em:'🏍️',cl:'Moto',sp:82,ac:80,ha:78,action:'spawn:pcj'},
+  ]},
+  tp_city:{title:'City Spots',type:'list',secs:[
+    {l:'LOS SANTOS',items:[
+      {n:'City Centre',       action:'tp:-266,-955,31'},
+      {n:'Police HQ',         action:'tp:441,-975,30'},
+      {n:'Hospital',          action:'tp:-249,-335,35'},
+      {n:'Airport (LSIA)',    action:'tp:-1037,-2738,20'},
+      {n:'Bank',              action:'tp:150,-1040,29'},
+      {n:'Car Dealership',    action:'tp:-47,-1757,29'},
+      {n:'Maze Bank Tower',   action:'tp:-75,-818,243'},
+      {n:'Casino',            action:'tp:921,46,81'},
+      {n:'Vinewood Hills',    action:'tp:-671,577,170'},
+    ]},
+    {l:'BLAINE COUNTY',items:[
+      {n:'Sandy Shores',      action:'tp:1853,3686,34'},
+      {n:'Mount Chiliad Top', action:'tp:450,5568,800'},
+      {n:'Fort Zancudo',      action:'tp:-2047,3132,32'},
+      {n:'Paleto Bay',        action:'tp:-270,6200,7'},
+    ]},
+  ]},
+  p_health:{title:'Health & Armor',type:'list',secs:[
+    {l:'HEALTH',items:[
+      {n:'Full Health',       b:'SET',bc:'bg2',action:'heal:200'},
+      {n:'Full Armor',        b:'SET',bc:'bc', action:'armor:100'},
+      {n:'Health + Armor',    b:'SET',bc:'bg2',action:'healarmor'},
+    ]},
+    {l:'LOOPS',items:[
+      {n:'Heal Loop',         tog:true, action:'toggle:loopheal'},
+      {n:'Armor Loop',        tog:true, action:'toggle:looparmor'},
+      {n:'Anti-Wanted Loop',  tog:true, action:'toggle:loopwanted'},
+    ]},
+  ]},
+  p_wanted:{title:'Wanted Level',type:'list',secs:[
+    {l:'SET WANTED',items:[
+      {n:'Clear Wanted',      b:'0★', bc:'bg2',action:'wanted:0'},
+      {n:'Wanted Level 1',    b:'1★', bc:'bc', action:'wanted:1'},
+      {n:'Wanted Level 2',    b:'2★', bc:'bc', action:'wanted:2'},
+      {n:'Wanted Level 3',    b:'3★', bc:'bor',action:'wanted:3'},
+      {n:'Wanted Level 5',    b:'5★', bc:'br', action:'wanted:5'},
+    ]}
+  ]},
+  ab_god:{title:'God & Protection',type:'list',secs:[
+    {l:'TOGGLES',items:[
+      {n:'God Mode',          tog:true,action:'toggle:god'},
+      {n:'Vehicle God Mode',  tog:true,action:'toggle:vehgod'},
+      {n:'Infinite Armor',    tog:true,action:'toggle:infarmor'},
+      {n:'No Wanted Level',   tog:true,action:'toggle:nowanted'},
+      {n:'Anti Ragdoll',      tog:true,action:'toggle:noragdoll'},
+    ]}
+  ]},
+  ab_noclip:{title:'Noclip',type:'list',secs:[
+    {l:'NOCLIP',items:[
+      {n:'Noclip ON/OFF',     tog:true,action:'toggle:noclip'},
+      {n:'Noclip Speed x1',   b:'SET',bc:'bc',action:'noclip_speed:1'},
+      {n:'Noclip Speed x2',   b:'SET',bc:'bc',action:'noclip_speed:2'},
+      {n:'Noclip Speed x3',   b:'SET',bc:'bor',action:'noclip_speed:3'},
+    ]}
+  ]},
+  ab_aim:{title:'Aimbot',type:'list',secs:[
+    {l:'AIMBOT',items:[
+      {n:'Aimbot ON/OFF',     tog:true,action:'toggle:aimbot'},
+      {n:'Silent Aim',        tog:true,action:'toggle:silentaim'},
+      {n:'Bone: Head',        b:'SET',bc:'br', action:'aim_bone:0'},
+      {n:'Bone: Chest',       b:'SET',bc:'bc', action:'aim_bone:2'},
+      {n:'Smooth: 10%',       b:'SET',bc:'bc', action:'aim_smooth:0.1'},
+      {n:'Smooth: 30%',       b:'SET',bc:'bc', action:'aim_smooth:0.3'},
+      {n:'FOV: 30',           b:'SET',bc:'bc', action:'aim_fov:30'},
+      {n:'FOV: 60',           b:'SET',bc:'bc', action:'aim_fov:60'},
+    ]}
+  ]},
+  esp_ply:{title:'Player ESP',type:'toggles',items:[
+    {n:'ESP Toggle',      tog:true,action:'toggle:esp'},
+    {n:'Player Boxes',    tog:true,action:'toggle:esp_boxes'},
+    {n:'Player Names',    tog:true,action:'toggle:esp_names'},
+    {n:'Health Bars',     tog:true,action:'toggle:esp_hp'},
+    {n:'Snaplines',       tog:true,action:'toggle:esp_snap'},
+    {n:'Spectate Alerts', tog:true,action:'toggle:spec_alerts'},
+    {n:'Anti-Spectate',   tog:true,action:'toggle:anti_spec'},
+  ]},
+  esp_radar:{title:'Radar & Blips',type:'toggles',items:[
+    {n:'Player Blips',    tog:true,action:'toggle:player_blips'},
+    {n:'Big Map',         tog:true,action:'toggle:bigmap'},
+    {n:'HUD Overlay',     tog:true,action:'toggle:hud'},
+  ]},
+  tr_player:{title:'Player Troll',type:'list',secs:[
+    {l:'NEAREST PLAYER',items:[
+      {n:'Explode',         b:'DO',bc:'br', action:'troll:explode'},
+      {n:'Launch',          b:'DO',bc:'bor',action:'troll:launch'},
+      {n:'Set on Fire',     b:'DO',bc:'br', action:'troll:fire'},
+      {n:'Ragdoll',         b:'DO',bc:'bor',action:'troll:ragdoll'},
+      {n:'Strip Weapons',   b:'DO',bc:'bc', action:'troll:strip'},
+      {n:'Teleport to Me',  b:'DO',bc:'bc', action:'troll:tpme'},
+      {n:'Kick From Car',   b:'DO',bc:'bor',action:'troll:kickcar'},
+      {n:'Copy Their Car',  b:'DO',bc:'bg2',action:'troll:stealcar'},
+    ]}
+  ]},
+  wx_type:{title:'Weather Type',type:'list',secs:[
+    {l:'WEATHER',items:[
+      {n:'Clear',       action:'weather:CLEAR'},
+      {n:'Extra Sunny', action:'weather:EXTRASUNNY'},
+      {n:'Cloudy',      action:'weather:CLOUDS'},
+      {n:'Rain',        action:'weather:RAIN'},
+      {n:'Thunder',     action:'weather:THUNDER'},
+      {n:'Foggy',       action:'weather:FOGGY'},
+      {n:'Snow',        action:'weather:XMAS'},
+      {n:'Blizzard',    action:'weather:BLIZZARD'},
+    ]}
+  ]},
+  wx_time:{title:'Time Control',type:'list',secs:[
+    {l:'TIME',items:[
+      {n:'Midnight 00:00', action:'time:0'},
+      {n:'Dawn     06:00', action:'time:6'},
+      {n:'Morning  09:00', action:'time:9'},
+      {n:'Noon     12:00', action:'time:12'},
+      {n:'Afternoon 15:00',action:'time:15'},
+      {n:'Sunset   18:00', action:'time:18'},
+      {n:'Night    21:00', action:'time:21'},
+    ]}
+  ]},
+  sv_info:{title:'Server Info',type:'sinfo',items:[
+    {n:'Players Online',l:'4 / 32'},
+    {n:'Server FPS',    l:'60 FPS'},
+    {n:'Ping',          l:'28ms'},
+    {n:'Framework',     l:'ESX 1.9'},
+  ]},
+  esx_cash:{title:'ESX — Cash',type:'list',secs:[
+    {l:'ADD CASH',items:[
+      {n:'Cash +$500',        b:'ESX',bc:'bp',action:'esx:cash:500'},
+      {n:'Cash +$1,000',      b:'ESX',bc:'bp',action:'esx:cash:1000'},
+      {n:'Cash +$5,000',      b:'ESX',bc:'bp',action:'esx:cash:5000'},
+      {n:'Cash +$10,000',     b:'ESX',bc:'bp',action:'esx:cash:10000'},
+      {n:'Cash +$50,000',     b:'HOT',bc:'br',action:'esx:cash:50000'},
+      {n:'Cash +$100,000',    b:'HOT',bc:'br',action:'esx:cash:100000'},
+      {n:'Cash +$1,000,000',  b:'MAX',bc:'bo',action:'esx:cash:1000000'},
+    ]}
+  ]},
+  esx_bank:{title:'ESX — Bank',type:'list',secs:[
+    {l:'ADD BANK',items:[
+      {n:'Bank +$10,000',     b:'ESX',bc:'bp',action:'esx:bank:10000'},
+      {n:'Bank +$100,000',    b:'ESX',bc:'bp',action:'esx:bank:100000'},
+      {n:'Bank +$500,000',    b:'HOT',bc:'br',action:'esx:bank:500000'},
+      {n:'Bank +$1,000,000',  b:'MAX',bc:'bo',action:'esx:bank:1000000'},
+    ]}
+  ]},
+  esx_job:{title:'ESX — Job',type:'list',secs:[
+    {l:'SET JOB',items:[
+      {n:'Police G0',   b:'SET',bc:'bc',action:'esx:job:police:0'},
+      {n:'Police G5',   b:'SET',bc:'bp',action:'esx:job:police:5'},
+      {n:'EMS G0',      b:'SET',bc:'bg2',action:'esx:job:ambulance:0'},
+      {n:'Mechanic G0', b:'SET',bc:'bor',action:'esx:job:mechanic:0'},
+      {n:'Unemployed',  b:'SET',bc:'bgr',action:'esx:job:unemployed:0'},
+    ]}
+  ]},
+  esx_bag:{title:'ESX — Open Bag',type:'list',secs:[
+    {l:'SELECT INVENTORY',items:[
+      {n:'esx_inventoryhud',  b:'ESX',bc:'bc',action:'esx:bag:esx_inventoryhud'},
+      {n:'ox_inventory',      b:'OX', bc:'bp',action:'esx:bag:ox_inventory'},
+      {n:'lj-inventory',      b:'LJ', bc:'bc',action:'esx:bag:lj_inventory'},
+    ]}
+  ]},
+  qb_cash:{title:'QB — Cash',type:'list',secs:[
+    {l:'ADD CASH',items:[
+      {n:'Cash +$500',        b:'QB',bc:'bo',action:'qb:cash:500'},
+      {n:'Cash +$1,000',      b:'QB',bc:'bo',action:'qb:cash:1000'},
+      {n:'Cash +$5,000',      b:'QB',bc:'bo',action:'qb:cash:5000'},
+      {n:'Cash +$10,000',     b:'QB',bc:'bo',action:'qb:cash:10000'},
+      {n:'Cash +$50,000',     b:'HOT',bc:'br',action:'qb:cash:50000'},
+      {n:'Cash +$100,000',    b:'HOT',bc:'br',action:'qb:cash:100000'},
+      {n:'Cash +$1,000,000',  b:'MAX',bc:'bo',action:'qb:cash:1000000'},
+    ]}
+  ]},
+  qb_bank:{title:'QB — Bank',type:'list',secs:[
+    {l:'ADD BANK',items:[
+      {n:'Bank +$10,000',     b:'QB',bc:'bo',action:'qb:bank:10000'},
+      {n:'Bank +$100,000',    b:'QB',bc:'bo',action:'qb:bank:100000'},
+      {n:'Bank +$1,000,000',  b:'MAX',bc:'bo',action:'qb:bank:1000000'},
+      {n:'Bank +$5,000,000',  b:'MAX',bc:'br',action:'qb:bank:5000000'},
+    ]}
+  ]},
+  qb_crypto:{title:'QB — Crypto',type:'list',secs:[
+    {l:'ADD CRYPTO',items:[
+      {n:'Crypto +$500',      b:'QB',bc:'bp',action:'qb:crypto:500'},
+      {n:'Crypto +$5,000',    b:'QB',bc:'bp',action:'qb:crypto:5000'},
+      {n:'Crypto +$50,000',   b:'MAX',bc:'bp',action:'qb:crypto:50000'},
+    ]}
+  ]},
+  qb_job:{title:'QB — Job',type:'list',secs:[
+    {l:'SET JOB',items:[
+      {n:'Police G0',    b:'SET',bc:'bc', action:'qb:job:police:0'},
+      {n:'Police G4',    b:'SET',bc:'bp', action:'qb:job:police:4'},
+      {n:'Ambulance G0', b:'SET',bc:'bg2',action:'qb:job:ambulance:0'},
+      {n:'Mechanic G0',  b:'SET',bc:'bor',action:'qb:job:mechanic:0'},
+      {n:'Drug Dealer',  b:'SET',bc:'br', action:'qb:job:drug_dealer:0'},
+      {n:'Unemployed',   b:'SET',bc:'bgr',action:'qb:job:unemployed:0'},
+    ]}
+  ]},
+  qb_bag:{title:'QB — Open Bag',type:'list',secs:[
+    {l:'SELECT INVENTORY',items:[
+      {n:'qb-inventory',   b:'QB', bc:'bo', action:'qb:bag:qb_inventory'},
+      {n:'ox_inventory',   b:'OX', bc:'bp', action:'qb:bag:ox_inventory'},
+      {n:'qp-inventory',   b:'CFW',bc:'bor',action:'qb:bag:qp_inventory'},
+      {n:'io-inventory',   b:'IO', bc:'bc', action:'qb:bag:io_inventory'},
+    ]}
+  ]},
+  qb_keys:{title:'QB — Keys',type:'list',secs:[
+    {l:'VEHICLE KEYS',items:[
+      {n:'Give Keys',        b:'GIVE',bc:'bo',action:'qb:keys:give'},
+      {n:'Remove All Keys',  b:'DEL', bc:'br',action:'qb:keys:remove'},
+    ]}
+  ]},
+};
+
+// ══ STATE ══
+let curNav='vehicle', curCat='vanilla', toggleStates={};
+const menuEl=document.getElementById('menu');
+
+// ══ RENDER NAV ══
+function switchNav(key){
+  document.querySelectorAll('.ri').forEach(r=>r.classList.remove('on'));
+  document.querySelector(`[data-nav="${key}"]`)?.classList.add('on');
+  curNav=key;
+  const d=NAV[key];
+  document.getElementById('cat-lbl').textContent=d.lbl;
+  document.getElementById('cat-name').textContent=d.name;
+  renderCats(d.cats);
+  sendToLua({type:'notify',text:'> '+d.name.toUpperCase(),color:'info'});
+}
+
+function renderCats(cats){
+  const el=document.getElementById('cat-body');
+  el.innerHTML='';
+  cats.forEach((c,i)=>{
+    const d=document.createElement('div');
+    d.className='ci'+(i===0?' on':'');
+    d.innerHTML=`<div class="ci-ic">${c.ic}</div><div class="ci-n">${c.n}</div>`;
+    d.onclick=()=>{
+      document.querySelectorAll('.ci').forEach(x=>x.classList.remove('on'));
+      d.classList.add('on');
+      curCat=c.k;
+      renderItems(c.k);
+    };
+    el.appendChild(d);
+    if(i===0){curCat=c.k;renderItems(c.k);}
+  });
+}
+
+function renderItems(key){
+  const data=ITEMS[key];
+  const el=document.getElementById('items-body');
+  const titleEl=document.getElementById('items-title');
+  el.innerHTML='';
+  el.classList.add('sld');
+  setTimeout(()=>el.classList.remove('sld'),200);
+  if(!data){titleEl.textContent=key;showInfoPreview({n:key,em:'⚙️'});return;}
+  titleEl.textContent=data.title;
+
+  if(data.type==='vehicles'){
+    data.items.forEach((item,i)=>{
+      const d=buildLI(item,i===0);
+      d.onclick=()=>{
+        document.querySelectorAll('.li').forEach(x=>x.classList.remove('on'));
+        d.classList.add('on');
+        showVehiclePreview(item);
+      };
+      el.appendChild(d);
+      if(i===0)showVehiclePreview(item);
+    });
+  } else if(data.type==='toggles'){
+    data.items.forEach((item,i)=>{
+      const d=buildLI(item,i===0);
+      el.appendChild(d);
+      if(i===0)showTogglePreview(data.items);
+    });
+    showTogglePreview(data.items);
+  } else if(data.type==='sinfo'){
+    data.items.forEach(item=>{
+      const row=document.createElement('div');
+      row.className='srow';
+      row.style.margin='0 0 4px 0';
+      row.innerHTML=`<span class="srow-l">${item.n}</span><span class="srow-v">${item.l}</span>`;
+      el.appendChild(row);
+    });
+    showInfoPreview({n:'Server',em:'🖥️'});
+  } else {
+    // list with sections
+    let first=true;
+    (data.secs||[]).forEach(sec=>{
+      const sl=document.createElement('div');
+      sl.className='sec-lbl';sl.textContent=sec.l;el.appendChild(sl);
+      (sec.items||[]).forEach(item=>{
+        const d=buildLI(item,first);
+        if(first){showActionPreview(item);first=false;}
+        d.onclick=()=>{
+          document.querySelectorAll('.li').forEach(x=>x.classList.remove('on'));
+          d.classList.add('on');
+          showActionPreview(item);
+        };
+        el.appendChild(d);
+      });
+    });
+  }
+}
+
+function buildLI(item,isOn){
+  const d=document.createElement('div');
+  d.className='li'+(isOn?' on':'');
+  let right='<span class="li-arr">›</span>';
+  if(item.b) right=`<span class="badge ${item.bc||'bc'}">${item.b}</span>`;
+  if(item.tog){
+    const on=toggleStates[item.action]||false;
+    right=`<div class="sw${on?' on':''}" data-action="${item.action}"></div>`;
+  }
+  d.innerHTML=`<div class="li-l"><div class="li-dot"></div><div class="li-n">${item.n}</div></div>${right}`;
+  d.onclick=()=>{
+    document.querySelectorAll('.li').forEach(x=>x.classList.remove('on'));
+    d.classList.add('on');
+    if(item.action) executeAction(item.action,item);
+  };
+  return d;
+}
+
+// ══ PREVIEW RENDERERS ══
+function showVehiclePreview(item){
+  document.getElementById('prev-name').textContent=item.n;
+  document.getElementById('prev-tag').textContent=(item.cl||'VEH').toUpperCase();
+  const body=document.getElementById('prev-body');
+  body.classList.add('sld');setTimeout(()=>body.classList.remove('sld'),200);
+  const hasStats=item.sp>0||item.ac>0||item.ha>0;
+  body.innerHTML=`
+    <div class="vcard">
+      <div class="vimg"><div class="vem">${item.em||'🚗'}</div></div>
+      <div class="vinf">
+        <div class="vname">${item.n}</div>
+        <div class="vmeta">${item.cl||'Vehicle'} — GTA V</div>
+        ${hasStats?`
+        <div class="stat"><div class="sl">Speed</div><div class="sb"><div class="sf" style="width:${item.sp}%"></div></div><div class="sv">${item.sp}</div></div>
+        <div class="stat"><div class="sl">Accel</div><div class="sb"><div class="sf" style="width:${item.ac}%"></div></div><div class="sv">${item.ac}</div></div>
+        <div class="stat"><div class="sl">Handle</div><div class="sb"><div class="sf" style="width:${item.ha}%"></div></div><div class="sv">${item.ha}</div></div>
+        `:''}
+      </div>
+    </div>
+    <div class="spbtn" onclick="executeAction('${item.action}',{})">[ ENTER ] SPAWN</div>`;
+}
+
+function showActionPreview(item){
+  document.getElementById('prev-name').textContent=item.n;
+  document.getElementById('prev-tag').textContent='ACTION';
+  const body=document.getElementById('prev-body');
+  body.classList.add('sld');setTimeout(()=>body.classList.remove('sld'),200);
+  if(item.tog){
+    const on=toggleStates[item.action]||false;
+    body.innerHTML=`
+      <div class="icard">
+        <div class="ic-icon">${on?'✅':'⭕'}</div>
+        <div class="ic-name">${item.n}</div>
+        <div class="ic-sub">Press ENTER to toggle</div>
+      </div>
+      <div class="tgrid">
+        <div class="trow">
+          <span class="tn">${item.n}</span>
+          <div class="sw${on?' on':''}" onclick="executeAction('${item.action}',{})"></div>
+        </div>
+      </div>`;
+  } else {
+    body.innerHTML=`
+      <div class="icard">
+        <div class="ic-icon">⚡</div>
+        <div class="ic-name">${item.n}</div>
+        <div class="ic-sub">Press ENTER to execute</div>
+        <div class="ic-btn" onclick="executeAction('${item.action||''}',{})">[ ENTER ] EXECUTE</div>
+      </div>`;
+  }
+}
+
+function showInfoPreview(item){
+  document.getElementById('prev-name').textContent=item.n;
+  document.getElementById('prev-tag').textContent='INFO';
+  document.getElementById('prev-body').innerHTML=`
+    <div class="icard">
+      <div class="ic-icon">${item.em||'⚙️'}</div>
+      <div class="ic-name">${item.n}</div>
+      <div class="ic-sub">Select from the list</div>
+    </div>`;
+}
+
+function showTogglePreview(items){
+  document.getElementById('prev-name').textContent='Toggles';
+  document.getElementById('prev-tag').textContent='CONFIG';
+  document.getElementById('prev-body').innerHTML=`
+    <div class="tgrid">
+      ${items.map(item=>{
+        const on=toggleStates[item.action]||false;
+        return `<div class="trow">
+          <span class="tn">${item.n}</span>
+          <div class="sw${on?' on':''}" onclick="executeAction('${item.action}',{})"></div>
+        </div>`;
+      }).join('')}
+    </div>`;
+}
+
+// ══ EXECUTE ACTION ══
+function executeAction(action, item){
+  if(!action) return;
+  // Toggle
+  if(action.startsWith('toggle:')){
+    const key=action.split(':')[1];
+    toggleStates[action]=!toggleStates[action];
+    // Update switches
+    document.querySelectorAll(`[data-action="${action}"],.sw`).forEach(sw=>{
+      if(sw.dataset && sw.dataset.action===action)
+        sw.classList.toggle('on', toggleStates[action]);
+    });
+    const on=toggleStates[action];
+    addAlert(`${item?.n||key}: ${on?'ON':'OFF'}`, on?'ok':'warn');
+  }
+  // Send to Lua
+  sendToLua({type:'action',action,item});
+}
+
+// ══ SEND TO LUA ══
+function sendToLua(data){
+  // In DUI context, this sends messages to Lua via the DUI bridge
+  if(window.invokeNative){
+    window.invokeNative('sendMessage', JSON.stringify(data));
+  }
+}
+
+// ══ RECEIVE FROM LUA ══
+window.addEventListener('message', function(e){
+  const d = e.data;
+  if(!d || !d.type) return;
+
+  switch(d.type){
+    case 'toggle':
+      menuEl.classList.toggle('open', d.show);
+      break;
+
+    case 'nav':
+      handleLuaNav(d);
+      break;
+    case 'notify':
+      addAlert(d.text, d.color||'info');
+      break;
+    case 'toggle_state':
+      // Update toggle state
+      if(d.key && d.value !== undefined){
+        const actionKey = 'toggle:'+d.key;
+        toggleStates[actionKey] = d.value;
+      }
+      break;
+    case 'update_hud':
+      // Update HUD values
+      if(d.hp !== undefined){
+        document.getElementById('hud-hp').style.width=(d.hp/200*100)+'%';
+        document.getElementById('hud-hp-v').textContent=d.hp;
+        document.getElementById('hud-hp').style.background=d.hp>150?'#00ff88':d.hp>80?'#ffc800':'#ff4444';
+      }
+      if(d.armor !== undefined){
+        document.getElementById('hud-arm').style.width=d.armor+'%';
+        document.getElementById('hud-arm-v').textContent=d.armor;
+      }
+      if(d.speed !== undefined){
+        document.getElementById('hud-speed-row').style.display='flex';
+        document.getElementById('hud-spd').style.width=Math.min(100,d.speed/300*100)+'%';
+        document.getElementById('hud-spd-v').textContent=d.speed+'km/h';
+      }
+      if(d.features){
+        document.getElementById('hud-feats').innerHTML=d.features.map(f=>`<span class="hud-feat">${f}</span>`).join('');
+      }
+      if(d.visible !== undefined){
+        document.getElementById('hud').classList.toggle('visible',d.visible);
+      }
+      break;
+    case 'players_update':
+      // Update server info preview
+      break;
+  }
+});
+
+
+// ══ LUA NAVIGATION HANDLER ══
+// Tracks current items for keyboard nav
+let navItemsList = [];
+let navCurIdx = 0;
+
+function handleLuaNav(d){
+  const action = d.action;
+
+  if(action === 'switchNav'){
+    if(d.nav) switchNav(d.nav);
+    navCurIdx = 0;
+    updateItemHighlight(0);
+
+  } else if(action === 'selectCat'){
+    // Highlight cat
+    const cats = document.querySelectorAll('.ci');
+    cats.forEach((c,i)=>c.classList.toggle('on', i===(d.catIdx-1)));
+    if(d.catKey) renderItems(d.catKey);
+    navCurIdx = 0;
+    updateItemHighlight(0);
+
+  } else if(action === 'enterSub'){
+    if(d.catKey) renderItems(d.catKey);
+    navCurIdx = 0;
+    updateItemHighlight(0);
+
+  } else if(action === 'selectItem'){
+    const items = document.querySelectorAll('.li');
+    if(items.length === 0) return;
+    // Wrap around
+    if(d.itemIdx > items.length) navCurIdx = 0;
+    else if(d.itemIdx < 1) navCurIdx = items.length - 1;
+    else navCurIdx = d.itemIdx - 1;
+    updateItemHighlight(navCurIdx);
+    // Tell Lua the corrected index
+    window.parent?.postMessage({type:'nav_idx', idx: navCurIdx+1},'*');
+
+  } else if(action === 'executeItem'){
+    const items = document.querySelectorAll('.li');
+    const idx = d.itemIdx > 0 ? d.itemIdx-1 : navCurIdx;
+    if(items[idx]){
+      items[idx].click();
+    }
+
+  } else if(action === 'goBack'){
+    // Re-render current cat
+    if(curCat) renderItems(curCat);
+    navCurIdx = 0;
+    updateItemHighlight(0);
+  }
+}
+
+function updateItemHighlight(idx){
+  const items = document.querySelectorAll('.li');
+  items.forEach((item,i)=>{
+    item.classList.toggle('on', i===idx);
+    if(i===idx){
+      item.scrollIntoView({block:'nearest', behavior:'smooth'});
+      // Update preview
+      item.dispatchEvent(new MouseEvent('mouseenter'));
+    }
+  });
+  // Also update nav items in preview
+  const data = ITEMS[curCat];
+  if(data && data.type === 'vehicles' && data.items && data.items[idx]){
+    showVehiclePreview(data.items[idx]);
+  } else if(data && data.type === 'list'){
+    let flat = [];
+    (data.secs||[]).forEach(s=>(s.items||[]).forEach(it=>flat.push(it)));
+    if(flat[idx]) showActionPreview(flat[idx]);
+  }
+}
+
+// ══ INIT ══
+document.querySelectorAll('.ri').forEach(ri=>{
+  ri.onclick=()=>switchNav(ri.dataset.nav);
+});
+document.getElementById('items-back').onclick=()=>{
+  renderItems(curCat);
+};
+
+switchNav('vehicle');
+addAlert('K2 MENU v5.0 — LOADED','ok');
+setTimeout(()=>addAlert('Press INSERT to toggle menu','info'),1200);
+</script>
+</body>
+</html>
