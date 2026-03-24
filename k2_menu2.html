@@ -3,296 +3,219 @@
 <head>
 <meta charset="UTF-8">
 <style>
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Geist+Mono:wght@400;500;600;700&display=swap');
 *{margin:0;padding:0;box-sizing:border-box;}
 html,body{width:100vw;height:100vh;overflow:hidden;background:transparent;
-  font-family:'Inter',sans-serif;font-size:12px;color:#ccc;
+  font-family:'Geist Mono','Consolas',monospace;font-size:11px;color:#b8b8cc;
   -webkit-font-smoothing:antialiased;}
-#menu{position:fixed;top:0;left:0;z-index:200;opacity:0;pointer-events:none;
-  transition:opacity .15s ease;padding:8px;}
+
+#menu{position:fixed;top:10px;left:10px;z-index:200;
+  opacity:0;pointer-events:none;transition:opacity .12s ease;}
 #menu.open{opacity:1;pointer-events:all;}
-.panel{width:310px;background:rgba(8,8,14,0.92);border:1px solid rgba(255,255,255,0.06);
-  border-radius:4px;backdrop-filter:blur(8px);box-shadow:0 8px 32px rgba(0,0,0,0.6);
-  display:flex;flex-direction:column;max-height:calc(100vh - 80px);overflow:hidden;}
-.hdr{display:flex;align-items:center;justify-content:space-between;padding:8px 10px 6px;
-  border-bottom:1px solid rgba(255,255,255,0.06);background:rgba(255,255,255,0.02);}
-.hdr-left{display:flex;align-items:center;gap:6px;}
-.hdr-logo{font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:700;color:#a78bfa;letter-spacing:1px;}
-.hdr-ver{font-size:9px;color:#555;font-family:'JetBrains Mono',monospace;}
-.hdr-right{display:flex;align-items:center;gap:8px;}
-.hdr-info{font-size:8.5px;color:#444;font-family:'JetBrains Mono',monospace;}
-.tabs{display:flex;gap:0;border-bottom:1px solid rgba(255,255,255,0.06);overflow-x:auto;flex-shrink:0;background:rgba(255,255,255,0.01);}
+
+.panel{
+  width:280px;
+  background:rgba(10,10,18,0.94);
+  border:1px solid rgba(120,90,220,0.12);
+  border-radius:3px;
+  box-shadow:0 4px 24px rgba(0,0,0,0.7),0 0 1px rgba(120,90,220,0.2);
+  display:flex;flex-direction:column;
+  max-height:calc(100vh - 30px);
+}
+
+.hdr{
+  padding:6px 8px;display:flex;align-items:center;justify-content:space-between;
+  border-bottom:1px solid rgba(120,90,220,0.1);
+  background:rgba(120,90,220,0.04);
+}
+.hdr-name{font-size:10px;font-weight:700;color:#a78bfa;letter-spacing:1.5px;}
+.hdr-v{font-size:8px;color:#444;margin-left:4px;}
+
+.tabs{
+  display:flex;overflow-x:auto;flex-shrink:0;
+  border-bottom:1px solid rgba(120,90,220,0.08);
+  background:rgba(0,0,0,0.15);
+}
 .tabs::-webkit-scrollbar{height:0;}
-.tab{padding:6px 9px;font-size:9px;font-weight:600;color:#555;cursor:pointer;white-space:nowrap;
-  border-bottom:2px solid transparent;transition:all .1s;flex-shrink:0;text-transform:uppercase;letter-spacing:0.5px;}
-.tab:hover{color:#888;background:rgba(255,255,255,0.02);}
-.tab.on{color:#a78bfa;border-bottom-color:#a78bfa;background:rgba(167,139,250,0.05);}
-.sub-hdr{display:flex;align-items:center;justify-content:space-between;padding:6px 10px 5px;
-  border-bottom:1px solid rgba(255,255,255,0.04);background:rgba(167,139,250,0.04);flex-shrink:0;}
-.sub-title{font-size:10px;font-weight:700;color:#a78bfa;letter-spacing:0.5px;}
-.sub-back{font-size:9px;color:#666;cursor:pointer;padding:2px 6px;border-radius:3px;transition:all .1s;display:none;}
-.sub-back:hover{color:#a78bfa;background:rgba(167,139,250,0.1);}
-.sub-back.show{display:block;}
-.list{flex:1;overflow-y:auto;padding:2px 0;min-height:100px;max-height:420px;}
-.list::-webkit-scrollbar{width:3px;}
+.tab{
+  padding:5px 7px;font-size:8px;font-weight:600;
+  color:#3a3a55;cursor:default;white-space:nowrap;
+  border-bottom:2px solid transparent;
+  transition:color .08s,border-color .08s;
+  text-transform:uppercase;letter-spacing:0.8px;
+}
+.tab.on{color:#a78bfa;border-bottom-color:#a78bfa;}
+
+.bread{
+  padding:5px 8px 4px;font-size:8px;color:#555;
+  border-bottom:1px solid rgba(120,90,220,0.06);
+  display:flex;align-items:center;gap:4px;
+}
+.bread-tab{color:#a78bfa;}
+.bread-sep{color:#333;}
+.bread-cat{color:#777;}
+
+.list{
+  flex:1;overflow-y:auto;padding:2px 0;
+  max-height:380px;min-height:60px;
+}
+.list::-webkit-scrollbar{width:2px;}
 .list::-webkit-scrollbar-track{background:transparent;}
-.list::-webkit-scrollbar-thumb{background:rgba(167,139,250,0.2);border-radius:2px;}
-.li{display:flex;align-items:center;gap:8px;padding:5px 10px;cursor:pointer;transition:background .06s;position:relative;min-height:26px;}
-.li:hover{background:rgba(255,255,255,0.03);}
-.li.on{background:rgba(167,139,250,0.12);}
-.li.on::before{content:'';position:absolute;left:0;top:0;bottom:0;width:2px;background:#a78bfa;}
-.li-icon{font-size:12px;width:16px;text-align:center;flex-shrink:0;opacity:.7;}
-.li-text{flex:1;font-size:11px;font-weight:500;color:#bbb;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-.li.on .li-text{color:#ddd;}
-.li-right{font-size:9px;color:#555;flex-shrink:0;display:flex;align-items:center;gap:4px;}
-.li-arrow{color:#444;font-size:10px;}
-.li-badge{font-size:7.5px;font-weight:700;padding:1px 5px;border-radius:3px;font-family:'JetBrains Mono',monospace;letter-spacing:0.3px;}
-.b-purple{background:rgba(167,139,250,0.15);color:#a78bfa;}
-.b-red{background:rgba(239,68,68,0.12);color:#f87171;}
-.b-green{background:rgba(34,197,94,0.12);color:#4ade80;}
-.b-yellow{background:rgba(234,179,8,0.12);color:#facc15;}
-.b-orange{background:rgba(249,115,22,0.12);color:#fb923c;}
-.b-gray{background:rgba(107,114,128,0.12);color:#9ca3af;}
-.sw{width:24px;height:12px;border-radius:6px;background:rgba(255,255,255,0.08);position:relative;cursor:pointer;transition:all .2s;flex-shrink:0;}
-.sw::after{content:'';position:absolute;top:1.5px;left:1.5px;width:9px;height:9px;border-radius:50%;background:#555;transition:all .2s;}
-.sw.on{background:#a78bfa;}
-.sw.on::after{left:12.5px;background:#fff;}
-.sec-lbl{font-size:8px;font-weight:700;letter-spacing:2px;color:rgba(167,139,250,0.4);padding:8px 10px 3px;text-transform:uppercase;font-family:'JetBrains Mono',monospace;}
-.ftr{display:flex;align-items:center;justify-content:space-between;padding:5px 10px;
-  border-top:1px solid rgba(255,255,255,0.04);background:rgba(255,255,255,0.01);flex-shrink:0;}
-.ftr-text{font-size:8px;color:#444;font-family:'JetBrains Mono',monospace;}
-.ftr-keys{display:flex;gap:6px;}
-.ftr-key{font-size:7.5px;color:#555;font-family:'JetBrains Mono',monospace;background:rgba(255,255,255,0.04);padding:1px 5px;border-radius:2px;}
-#alerts{position:fixed;bottom:12px;left:8px;z-index:600;display:flex;flex-direction:column;gap:4px;width:240px;pointer-events:none;}
-.alert{display:flex;align-items:center;gap:6px;padding:5px 8px;background:rgba(8,8,14,0.92);border:1px solid rgba(255,255,255,0.06);border-radius:4px;backdrop-filter:blur(8px);animation:aIn .2s ease both;overflow:hidden;position:relative;}
-.alert::before{content:'';position:absolute;left:0;top:0;bottom:0;width:2px;}
-.alert.ok::before{background:#22c55e;}.alert.warn::before{background:#eab308;}.alert.err::before{background:#ef4444;}.alert.troll::before{background:#f97316;}.alert.info::before{background:#a78bfa;}
-.a-dot{width:5px;height:5px;border-radius:50%;flex-shrink:0;}
-.a-text{flex:1;font-size:9px;font-weight:500;font-family:'JetBrains Mono',monospace;color:#aaa;}
-@keyframes aIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
-@keyframes aOut{to{opacity:0;transform:translateY(8px);height:0;padding:0;margin:0;border:0}}
-.alert.out{animation:aOut .2s ease forwards;}
-#hud{position:fixed;bottom:60px;left:8px;z-index:300;display:none;background:rgba(8,8,14,0.88);border:1px solid rgba(255,255,255,0.06);border-radius:4px;padding:6px 10px;backdrop-filter:blur(8px);}
-#hud.show{display:block;}
-.hud-row{display:flex;align-items:center;gap:8px;margin:1px 0;}
-.hud-lbl{font-size:8px;font-weight:700;color:#555;width:36px;font-family:'JetBrains Mono',monospace;letter-spacing:0.5px;}
-.hud-val{font-size:9px;font-weight:600;color:#a78bfa;font-family:'JetBrains Mono',monospace;}
-.hud-feats{display:flex;gap:3px;flex-wrap:wrap;margin-top:2px;}
-.hud-feat{font-size:7px;font-weight:700;padding:1px 4px;border-radius:2px;background:rgba(167,139,250,0.12);color:#a78bfa;font-family:'JetBrains Mono',monospace;}
+.list::-webkit-scrollbar-thumb{background:rgba(120,90,220,0.2);border-radius:1px;}
+
+.row{
+  display:flex;align-items:center;
+  padding:4px 8px;min-height:22px;
+  cursor:default;transition:background .05s;position:relative;
+}
+.row:hover{background:rgba(255,255,255,0.02);}
+.row.on{background:rgba(120,90,220,0.12);}
+.row.on::before{
+  content:'';position:absolute;left:0;top:0;bottom:0;
+  width:2px;background:#a78bfa;
+  box-shadow:0 0 4px rgba(120,90,220,0.4);
+}
+.row-text{flex:1;font-size:10px;font-weight:500;color:#888;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.row.on .row-text{color:#ccc;}
+.row-right{display:flex;align-items:center;gap:4px;flex-shrink:0;}
+.row-arrow{font-size:9px;color:#333;}
+.row.on .row-arrow{color:#a78bfa;}
+
+.tog{width:6px;height:6px;border-radius:50%;background:#333;flex-shrink:0;}
+.tog.on{background:#a78bfa;box-shadow:0 0 4px rgba(120,90,220,0.5);}
+
+.ftr{
+  padding:4px 8px;border-top:1px solid rgba(120,90,220,0.06);
+  font-size:7px;color:#333;display:flex;justify-content:space-between;
+  letter-spacing:0.5px;
+}
+
+#alerts{position:fixed;bottom:10px;left:10px;z-index:600;
+  display:flex;flex-direction:column;gap:3px;width:220px;pointer-events:none;}
+.alert{
+  padding:4px 7px;font-size:8.5px;font-weight:500;color:#999;
+  background:rgba(10,10,18,0.92);border:1px solid rgba(120,90,220,0.08);
+  border-radius:3px;position:relative;
+  animation:aIn .15s ease both;
+}
+.alert::before{content:'';position:absolute;left:0;top:0;bottom:0;width:2px;border-radius:1px 0 0 1px;}
+.alert.ok::before{background:#22c55e;}
+.alert.warn::before{background:#eab308;}
+.alert.err::before{background:#ef4444;}
+.alert.info::before{background:#a78bfa;}
+@keyframes aIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+@keyframes aOut{to{opacity:0;height:0;padding:0;margin:0;border:0;overflow:hidden}}
+.alert.out{animation:aOut .15s ease forwards;}
 </style>
 </head>
 <body>
 <div id="alerts"></div>
-<div id="hud">
-  <div class="hud-row"><span class="hud-lbl">HP</span><span class="hud-val" id="hud-hp">200</span></div>
-  <div class="hud-row"><span class="hud-lbl">ARMOR</span><span class="hud-val" id="hud-armor">0</span></div>
-  <div class="hud-row"><span class="hud-lbl">SPEED</span><span class="hud-val" id="hud-speed">0</span></div>
-  <div class="hud-feats" id="hud-feats"></div>
-</div>
 <div id="menu">
 <div class="panel">
-  <div class="hdr"><div class="hdr-left"><div class="hdr-logo">K2 MENU</div><div class="hdr-ver">v5.0</div></div><div class="hdr-right"><div class="hdr-info" id="hdr-count"></div></div></div>
+  <div class="hdr">
+    <span><span class="hdr-name">K2 MENU</span><span class="hdr-v">v6</span></span>
+  </div>
   <div class="tabs" id="tabs"></div>
-  <div class="sub-hdr"><div class="sub-title" id="sub-title">Vehicle</div><div class="sub-back" id="sub-back" onclick="goBack()">‹ BACK</div></div>
+  <div class="bread" id="bread">
+    <span class="bread-tab" id="b-tab">-</span>
+    <span class="bread-sep">›</span>
+    <span class="bread-cat" id="b-cat">-</span>
+  </div>
   <div class="list" id="list"></div>
-  <div class="ftr"><div class="ftr-text">F9 Open/Close</div><div class="ftr-keys"><div class="ftr-key">↑↓ Nav</div><div class="ftr-key">ENTER Select</div><div class="ftr-key">← Back</div></div></div>
+  <div class="ftr">
+    <span>↑↓ Nav</span>
+    <span>←→ Tabs</span>
+    <span>ENTER Select</span>
+    <span>BKSP Back</span>
+  </div>
 </div>
 </div>
+
 <script>
 let aid=0;
-const ACOLORS={ok:'#22c55e',warn:'#eab308',err:'#ef4444',troll:'#f97316',info:'#a78bfa'};
-function addAlert(t,type='info'){const p=document.getElementById('alerts');const id=++aid;const el=document.createElement('div');el.className='alert '+type;el.id='a'+id;const c=ACOLORS[type]||ACOLORS.info;el.innerHTML='<div class="a-dot" style="background:'+c+';box-shadow:0 0 4px '+c+'60"></div><div class="a-text">'+t+'</div>';if(p.children.length>=4)p.lastChild.remove();p.insertBefore(el,p.firstChild);setTimeout(()=>{const e=document.getElementById('a'+id);if(e){e.classList.add('out');setTimeout(()=>e.remove(),200);}},4000);}
+function addAlert(text,type){
+  const p=document.getElementById('alerts');
+  const id=++aid;
+  const el=document.createElement('div');
+  el.className='alert '+(type||'info');
+  el.id='a'+id;
+  el.textContent=text;
+  if(p.children.length>=3)p.lastChild.remove();
+  p.insertBefore(el,p.firstChild);
+  setTimeout(()=>{const e=document.getElementById('a'+id);if(e){e.classList.add('out');setTimeout(()=>e.remove(),160);}},3500);
+}
 
-const SECTIONS={
-  vehicle:{name:'Vehicle',cats:[{n:'Vanilla Cars',k:'vanilla',ic:'🏎️'},{n:'Server Vehicles',k:'sveh',ic:'🚗'},{n:'Vehicle Mods',k:'mods',ic:'🔧'},{n:'Paint & Neon',k:'paint',ic:'🎨'},{n:'Fix & Repair',k:'fix',ic:'🔄'},{n:'Aircraft',k:'air',ic:'🚁'},{n:'Motorcycles',k:'moto',ic:'🏍️'},{n:'Vehicle God',k:'vehgod',ic:'🛡️'}]},
-  player:{name:'Player',cats:[{n:'Health & Armor',k:'p_health',ic:'❤️'},{n:'God & Protect',k:'p_god',ic:'🛡️'},{n:'Wanted Level',k:'p_wanted',ic:'⭐'},{n:'Noclip',k:'p_noclip',ic:'🚀'},{n:'Ped & Outfit',k:'p_ped',ic:'👤'},{n:'Movement',k:'p_move',ic:'🏃'},{n:'Auto Loops',k:'p_loops',ic:'🔁'}]},
-  weapons:{name:'Weapons',cats:[{n:'Handguns',k:'w_hand',ic:'🔫'},{n:'SMGs',k:'w_smg',ic:'🔫'},{n:'Rifles',k:'w_rifles',ic:'🔫'},{n:'Sniper',k:'w_sniper',ic:'🔭'},{n:'Explosives',k:'w_explo',ic:'💣'},{n:'Melee',k:'w_melee',ic:'🔪'},{n:'Loadout',k:'w_load',ic:'📦'},{n:'Extras',k:'w_extra',ic:'⚙️'}]},
-  teleport:{name:'Teleport',cats:[{n:'Waypoint',k:'tp_wp',ic:'🗺️'},{n:'City Spots',k:'tp_city',ic:'🏙️'},{n:'Hidden Spots',k:'tp_hidden',ic:'🏔️'},{n:'To Player',k:'tp_player',ic:'👤'}]},
-  world:{name:'World',cats:[{n:'Weather',k:'wx_type',ic:'🌦️'},{n:'Time',k:'wx_time',ic:'🕐'},{n:'World Options',k:'wx_world',ic:'🌊'}]},
-  pvp:{name:'PvP',cats:[{n:'Aimbot',k:'ab_aim',ic:'🎯'},{n:'Silent Aim',k:'ab_silent',ic:'🔇'},{n:'Combat Extras',k:'ab_combat',ic:'⚡'},{n:'Protection',k:'ab_prot',ic:'🛡️'}]},
-  esp:{name:'ESP',cats:[{n:'Player ESP',k:'esp_ply',ic:'👁️'},{n:'Radar & Blips',k:'esp_radar',ic:'📡'},{n:'Spectate Alert',k:'esp_spec',ic:'🔔'}]},
-  troll:{name:'Troll',cats:[{n:'Explosions',k:'tr_explo',ic:'💥'},{n:'Launch & Force',k:'tr_launch',ic:'🚀'},{n:'Vortex & Chaos',k:'tr_vortex',ic:'🌀'},{n:'Fire',k:'tr_fire',ic:'🔥'},{n:'Vehicle Troll',k:'tr_veh',ic:'🚗'},{n:'Zombie Attack',k:'tr_zombie',ic:'💀'},{n:'Earrape',k:'tr_sound',ic:'🎵'},{n:'Map Destroyer',k:'tr_map',ic:'📦'},{n:'Force Anim',k:'tr_anim',ic:'🎭'}]},
-  anims:{name:'Anims',cats:[{n:'Gestures',k:'an_gest',ic:'🎭'},{n:'Emotes',k:'an_emote',ic:'💬'},{n:'Dances',k:'an_dance',ic:'🕺'},{n:'Actions',k:'an_action',ic:'🎬'}]},
-  esx:{name:'ESX',cats:[{n:'Cash',k:'esx_cash',ic:'💰'},{n:'Bank',k:'esx_bank',ic:'🏦'},{n:'Job',k:'esx_job',ic:'🎭'},{n:'Bag',k:'esx_bag',ic:'🎒'},{n:'Items',k:'esx_items',ic:'💊'},{n:'Revive',k:'esx_revive',ic:'🚑'},{n:'Police',k:'esx_police',ic:'🚔'}]},
-  qb:{name:'QB',cats:[{n:'Cash',k:'qb_cash',ic:'💰'},{n:'Bank',k:'qb_bank',ic:'🏦'},{n:'Crypto',k:'qb_crypto',ic:'🪙'},{n:'Job',k:'qb_job',ic:'🎭'},{n:'Bag',k:'qb_bag',ic:'🎒'},{n:'Keys',k:'qb_keys',ic:'🔑'},{n:'Items',k:'qb_items',ic:'💊'},{n:'Revive',k:'qb_revive',ic:'🚑'}]},
-  misc:{name:'Misc',cats:[{n:'Objects',k:'obj_props',ic:'🪑'},{n:'Barriers',k:'obj_barr',ic:'🚧'},{n:'Car Throw',k:'ct_modes',ic:'🚀'},{n:'Freecam',k:'fc_ctrl',ic:'🎥'},{n:'Particles',k:'px_explo',ic:'✨'},{n:'Triggers',k:'tr_safe',ic:'⚡'}]},
-  settings:{name:'Settings',cats:[{n:'Theme',k:'cfg_theme',ic:'🎨'},{n:'HUD',k:'cfg_hud',ic:'📊'}]},
-};
-
-const ITEMS={
-  vanilla:[{n:'Zentorno',a:'spawn:zentorno'},{n:'T20',a:'spawn:t20'},{n:'Adder',a:'spawn:adder'},{n:'Entity XF',a:'spawn:entityxf'},{n:'Pariah',a:'spawn:pariah'},{n:'Nero',a:'spawn:nero'},{n:'Vagner',a:'spawn:vagner'},{n:'Elegy RH8',a:'spawn:elegy'},{n:'Sultan RS',a:'spawn:sultanrs'},{n:'Comet S2',a:'spawn:comet5'},{n:'Gauntlet',a:'spawn:gauntlet'},{n:'Vigero',a:'spawn:vigero'},{n:'Dubsta 6x6',a:'spawn:dubsta3'},{n:'Insurgent',a:'spawn:insurgent'},{n:'Rhino Tank',a:'spawn:rhino'}],
-  sveh:[{n:'Bugatti Chiron',a:'spawn:chiron'},{n:'Lamborghini SVJ',a:'spawn:lambo'},{n:'Ferrari SF90',a:'spawn:sf90'},{n:'Nissan GTR R35',a:'spawn:gtr'},{n:'Toyota Supra',a:'spawn:supra'}],
-  mods:[{n:'Engine Stage 4',a:'mod:engine:3',b:'S4'},{n:'Transmission Stage 3',a:'mod:trans:2',b:'S3'},{n:'Brakes Stage 3',a:'mod:brakes:2',b:'S3'},{n:'Suspension Stage 4',a:'mod:susp:3',b:'S4'},{n:'Armor Stage 5',a:'mod:armor:4',b:'S5'},{n:'Turbo ON/OFF',a:'toggle:turbo',tog:true},{n:'MAX EVERYTHING',a:'max',b:'MAX',bc:'b-yellow'},{n:'Repair Vehicle',a:'repair',b:'FIX',bc:'b-green'},{n:'Fix Flipped',a:'flip'},{n:'Clean Vehicle',a:'clean_veh'}],
-  paint:[{n:'Red',a:'paint:220,0,0'},{n:'Blue',a:'paint:0,100,255'},{n:'Black',a:'paint:0,0,0'},{n:'White',a:'paint:255,255,255'},{n:'Gold',a:'paint:255,190,0'},{n:'Green',a:'paint:0,200,80'},{n:'Purple',a:'paint:140,40,220'},{n:'Random',a:'paint:rnd',b:'RND'},{n:'── NEON ──',sep:true},{n:'Cyan Neon',a:'neon:0,195,255'},{n:'Red Neon',a:'neon:255,0,50'},{n:'Gold Neon',a:'neon:255,200,0'},{n:'Green Neon',a:'neon:0,255,100'},{n:'Purple Neon',a:'neon:160,0,255'},{n:'Random Neon',a:'neon:rnd'},{n:'Neon OFF',a:'neon:off',b:'OFF',bc:'b-gray'}],
-  fix:[{n:'Repair Vehicle',a:'repair',b:'FIX',bc:'b-green'},{n:'Fix Flipped',a:'flip'},{n:'Flip Proof',a:'toggle:flipproof',tog:true},{n:'Boost Speed',a:'veh_boost'},{n:'Persist Vehicle',a:'persist'},{n:'Eject All',a:'eject_all',b:'DO',bc:'b-red'}],
-  vehgod:[{n:'Vehicle God Mode',a:'toggle:vehgod',tog:true},{n:'Flip Proof',a:'toggle:flipproof',tog:true},{n:'Invisible Vehicle',a:'toggle:veh_invisible',tog:true},{n:'No Damage',a:'toggle:nodamage',tog:true}],
-  air:[{n:'Buzzard Attack',a:'spawn:buzzard2'},{n:'Hunter',a:'spawn:hunter'},{n:'Hydra',a:'spawn:hydra'},{n:'Lazer',a:'spawn:lazer'},{n:'Savage',a:'spawn:savage'},{n:'Akula',a:'spawn:akula'},{n:'Volatol',a:'spawn:volatol'}],
-  moto:[{n:'Oppressor Mk2',a:'spawn:oppressor2'},{n:'Hakuchou',a:'spawn:hakuchou'},{n:'Bati 801',a:'spawn:bati'},{n:'Shotaro',a:'spawn:shotaro'},{n:'Reaper',a:'spawn:reaper'}],
-  p_health:[{n:'Full Health',a:'heal:200',b:'200',bc:'b-green'},{n:'Full Armor',a:'armor:100',b:'100'},{n:'Health + Armor',a:'healarmor',b:'MAX',bc:'b-green'},{n:'── LOOPS ──',sep:true},{n:'Heal Loop',a:'toggle:loopheal',tog:true},{n:'Armor Loop',a:'toggle:looparmor',tog:true},{n:'Anti-Wanted Loop',a:'toggle:loopwanted',tog:true}],
-  p_god:[{n:'God Mode',a:'toggle:god',tog:true},{n:'Vehicle God',a:'toggle:vehgod',tog:true},{n:'No Wanted',a:'toggle:loopwanted',tog:true},{n:'Anti Ragdoll',a:'toggle:noragdoll',tog:true},{n:'Invisible',a:'toggle:invisible',tog:true},{n:'Freeze Position',a:'toggle:freeze',tog:true},{n:'Anti-Spectate',a:'toggle:antispec',tog:true},{n:'Bulletproof',a:'toggle:bulletproof',tog:true}],
-  p_wanted:[{n:'Clear Wanted',a:'wanted:0',b:'0★',bc:'b-green'},{n:'Wanted 1',a:'wanted:1',b:'1★'},{n:'Wanted 2',a:'wanted:2',b:'2★'},{n:'Wanted 3',a:'wanted:3',b:'3★',bc:'b-orange'},{n:'Wanted 5',a:'wanted:5',b:'5★',bc:'b-red'}],
-  p_noclip:[{n:'Noclip ON/OFF',a:'toggle:noclip',tog:true},{n:'Speed x0.5',a:'nc_spd:0.5',b:'x0.5'},{n:'Speed x1',a:'nc_spd:1',b:'x1'},{n:'Speed x2',a:'nc_spd:2',b:'x2',bc:'b-orange'},{n:'Speed x5',a:'nc_spd:5',b:'x5',bc:'b-red'}],
-  p_ped:[{n:'Freemode Male',a:'model:mp_m_freemode_01'},{n:'Trevor',a:'model:trevor'},{n:'Michael',a:'model:michael'},{n:'Franklin',a:'model:franklin'},{n:'Cop',a:'model:s_m_y_cop_01'},{n:'SWAT',a:'model:s_m_y_swat_01'},{n:'Zombie',a:'model:cs_zombie'},{n:'── OUTFIT ──',sep:true},{n:'Clean Player',a:'clean_ped'},{n:'Random Outfit',a:'random_outfit'}],
-  p_move:[{n:'Run Speed x1',a:'runspd:1',b:'x1'},{n:'Run Speed x1.5',a:'runspd:1.5',b:'x1.5'},{n:'Run Speed x2',a:'runspd:2',b:'x2',bc:'b-orange'},{n:'Run Speed x3',a:'runspd:3',b:'x3',bc:'b-red'},{n:'Super Jump',a:'toggle:superjump',tog:true},{n:'Super Speed',a:'toggle:superspeed',tog:true},{n:'Swim Fast',a:'toggle:swimfast',tog:true}],
-  p_loops:[{n:'Heal Loop',a:'toggle:loopheal',tog:true},{n:'Armor Loop',a:'toggle:looparmor',tog:true},{n:'Anti-Wanted',a:'toggle:loopwanted',tog:true},{n:'God Loop',a:'toggle:godloop',tog:true},{n:'Ammo Refill',a:'toggle:ammolp',tog:true},{n:'Vehicle Repair',a:'toggle:vehlp',tog:true}],
-  w_hand:[{n:'Pistol',a:'weapon:WEAPON_PISTOL'},{n:'Pistol Mk2',a:'weapon:WEAPON_PISTOL_MK2'},{n:'Heavy Pistol',a:'weapon:WEAPON_HEAVYPISTOL'},{n:'Combat Pistol',a:'weapon:WEAPON_COMBATPISTOL'},{n:'Revolver',a:'weapon:WEAPON_REVOLVER'},{n:'AP Pistol',a:'weapon:WEAPON_APPISTOL'},{n:'Stun Gun',a:'weapon:WEAPON_STUNGUN'}],
-  w_smg:[{n:'SMG',a:'weapon:WEAPON_SMG'},{n:'SMG Mk2',a:'weapon:WEAPON_SMG_MK2'},{n:'Assault SMG',a:'weapon:WEAPON_ASSAULTSMG'},{n:'Micro SMG',a:'weapon:WEAPON_MICROSMG'},{n:'Combat PDW',a:'weapon:WEAPON_COMBATPDW'},{n:'Machine Pistol',a:'weapon:WEAPON_MACHINEPISTOL'}],
-  w_rifles:[{n:'AK-47',a:'weapon:WEAPON_ASSAULTRIFLE'},{n:'AK-47 Mk2',a:'weapon:WEAPON_ASSAULTRIFLE_MK2'},{n:'Carbine Rifle',a:'weapon:WEAPON_CARBINERIFLE'},{n:'Special Carbine',a:'weapon:WEAPON_SPECIALCARBINE'},{n:'Bullpup Rifle',a:'weapon:WEAPON_BULLPUPRIFLE'},{n:'Advanced Rifle',a:'weapon:WEAPON_ADVANCEDRIFLE'},{n:'Military Rifle',a:'weapon:WEAPON_MILITARYRIFLE'},{n:'Heavy Rifle',a:'weapon:WEAPON_HEAVYRIFLE'}],
-  w_sniper:[{n:'Sniper Rifle',a:'weapon:WEAPON_SNIPERRIFLE'},{n:'Heavy Sniper',a:'weapon:WEAPON_HEAVYSNIPER'},{n:'Heavy Sniper Mk2',a:'weapon:WEAPON_HEAVYSNIPER_MK2'},{n:'Marksman Rifle',a:'weapon:WEAPON_MARKSMANRIFLE'}],
-  w_explo:[{n:'RPG',a:'weapon:WEAPON_RPG'},{n:'Homing Launcher',a:'weapon:WEAPON_HOMINGLAUNCHER'},{n:'Grenade Launcher',a:'weapon:WEAPON_GRENADELAUNCHER'},{n:'Minigun',a:'weapon:WEAPON_MINIGUN'},{n:'Railgun',a:'weapon:WEAPON_RAILGUN'},{n:'Grenade',a:'weapon:WEAPON_GRENADE'},{n:'Sticky Bomb',a:'weapon:WEAPON_STICKYBOMB'},{n:'Molotov',a:'weapon:WEAPON_MOLOTOV'}],
-  w_melee:[{n:'Knife',a:'weapon:WEAPON_KNIFE'},{n:'Machete',a:'weapon:WEAPON_MACHETE'},{n:'Hatchet',a:'weapon:WEAPON_HATCHET'},{n:'Battle Axe',a:'weapon:WEAPON_BATTLEAXE'},{n:'Baseball Bat',a:'weapon:WEAPON_BAT'},{n:'Knuckle Duster',a:'weapon:WEAPON_KNUCKLE'}],
-  w_load:[{n:'All Weapons',a:'loadout:all',b:'ALL',bc:'b-yellow'},{n:'Stealth Loadout',a:'loadout:stealth'},{n:'Heavy Loadout',a:'loadout:heavy'},{n:'Police Loadout',a:'loadout:police'},{n:'Military Loadout',a:'loadout:military'},{n:'Remove All',a:'remove_weapons',b:'DEL',bc:'b-red'}],
-  w_extra:[{n:'Infinite Ammo',a:'toggle:infammo',tog:true},{n:'No Reload',a:'toggle:noreload',tog:true},{n:'Explosive Ammo',a:'toggle:exploammo',tog:true},{n:'Fire Ammo',a:'toggle:fireammo',tog:true},{n:'No Recoil',a:'toggle:norecoil',tog:true},{n:'Damage x5',a:'wdmg:5',b:'x5',bc:'b-red'},{n:'Add 999 Ammo',a:'add_ammo:999'}],
-  tp_wp:[{n:'Teleport to Waypoint',a:'tp_waypoint',b:'GO',bc:'b-purple'}],
-  tp_city:[{n:'City Centre',a:'tp:-266,-955,31'},{n:'Police HQ',a:'tp:441,-975,30'},{n:'Hospital',a:'tp:-249,-335,35'},{n:'Airport LSIA',a:'tp:-1037,-2738,20'},{n:'Bank (Fleeca)',a:'tp:150,-1040,29'},{n:'Maze Bank Tower',a:'tp:-75,-818,243'},{n:'Casino',a:'tp:921,46,81'},{n:'Vinewood Hills',a:'tp:-671,577,170'},{n:'── BLAINE COUNTY ──',sep:true},{n:'Sandy Shores',a:'tp:1853,3686,34'},{n:'Fort Zancudo',a:'tp:-2047,3132,32'},{n:'Paleto Bay',a:'tp:-270,6200,7'},{n:'Mount Chiliad TOP',a:'tp:450,5568,800'}],
-  tp_hidden:[{n:'UFO Chiliad',a:'tp:502,5605,801'},{n:'FIB Roof',a:'tp:131,-622,246'},{n:'Underwater Hatch',a:'tp:-714,5451,-68'},{n:'Humane Labs',a:'tp:3455,3698,27'},{n:'Cayo Perico',a:'tp:4978,-4842,2'}],
-  tp_player:[{n:'Teleport to Nearest',a:'tp_nearest',b:'GO',bc:'b-purple'}],
-  wx_type:[{n:'Clear',a:'weather:CLEAR'},{n:'Extra Sunny',a:'weather:EXTRASUNNY'},{n:'Cloudy',a:'weather:CLOUDS'},{n:'Rain',a:'weather:RAIN'},{n:'Thunder',a:'weather:THUNDER'},{n:'Foggy',a:'weather:FOGGY'},{n:'Snow',a:'weather:XMAS'},{n:'Blizzard',a:'weather:BLIZZARD'}],
-  wx_time:[{n:'Midnight 00:00',a:'time:0'},{n:'Dawn 06:00',a:'time:6'},{n:'Noon 12:00',a:'time:12'},{n:'Sunset 18:00',a:'time:18'},{n:'Night 21:00',a:'time:21'}],
-  wx_world:[{n:'Remove Peds (50m)',a:'delete_peds:50',b:'DO',bc:'b-red'},{n:'Clear Area (40m)',a:'clear_area:40',b:'DO',bc:'b-orange'}],
-  ab_aim:[{n:'Aimbot ON/OFF',a:'toggle:aimbot',tog:true},{n:'Bone: Head',a:'aim_bone:0',b:'HEAD',bc:'b-red'},{n:'Bone: Chest',a:'aim_bone:2',b:'CHEST'},{n:'FOV: 30',a:'aim_fov:30'},{n:'FOV: 60',a:'aim_fov:60'},{n:'FOV: 90',a:'aim_fov:90'},{n:'Smooth: 10%',a:'aim_smooth:0.1'},{n:'Smooth: 50%',a:'aim_smooth:0.5'}],
-  ab_silent:[{n:'Silent Aim ON/OFF',a:'toggle:silentaim',tog:true},{n:'Bone: Head',a:'sa_bone:0'},{n:'Bone: Chest',a:'sa_bone:2'}],
-  ab_combat:[{n:'Explosive Ammo',a:'toggle:exploammo',tog:true},{n:'Fire Ammo',a:'toggle:fireammo',tog:true},{n:'Infinite Ammo',a:'toggle:infammo',tog:true},{n:'No Reload',a:'toggle:noreload',tog:true},{n:'No Recoil',a:'toggle:norecoil',tog:true},{n:'Damage x5',a:'wdmg:5',b:'x5',bc:'b-red'}],
-  ab_prot:[{n:'God Mode',a:'toggle:god',tog:true},{n:'Anti-Spectate',a:'toggle:antispec',tog:true},{n:'Invisible',a:'toggle:invisible',tog:true},{n:'Bulletproof',a:'toggle:bulletproof',tog:true},{n:'No Ragdoll',a:'toggle:noragdoll',tog:true}],
-  esp_ply:[{n:'ESP ON/OFF',a:'toggle:esp',tog:true},{n:'Boxes',a:'toggle:esp_boxes',tog:true},{n:'Names',a:'toggle:esp_names',tog:true},{n:'Health Bars',a:'toggle:esp_hp',tog:true},{n:'Snaplines',a:'toggle:esp_snap',tog:true},{n:'Skeleton',a:'toggle:esp_skel',tog:true}],
-  esp_radar:[{n:'Player Blips',a:'toggle:player_blips',tog:true},{n:'Big Map',a:'toggle:bigmap',tog:true},{n:'HUD Overlay',a:'toggle:hud',tog:true}],
-  esp_spec:[{n:'Spectate Alert',a:'toggle:spec_alert',tog:true},{n:'Anti-Spectate',a:'toggle:antispec',tog:true}],
-  tr_explo:[{n:'Explode (Normal)',a:'troll:explode:2',b:'DO',bc:'b-red'},{n:'Explode (Big)',a:'troll:explode:7',b:'DO',bc:'b-red'},{n:'Explode (Nuke)',a:'troll:explode:59',b:'DO',bc:'b-red'},{n:'Fire Explosion',a:'troll:explode:1',b:'DO',bc:'b-orange'},{n:'Gas Explosion',a:'troll:explode:9',b:'DO',bc:'b-orange'}],
-  tr_launch:[{n:'Launch Player',a:'troll:launch',b:'DO',bc:'b-red'},{n:'Ragdoll',a:'troll:ragdoll',b:'DO',bc:'b-orange'},{n:'Fling into Sky',a:'troll:fling',b:'DO',bc:'b-red'},{n:'Teleport to Me',a:'troll:tpme'},{n:'Strip Weapons',a:'troll:strip'},{n:'Kick from Car',a:'troll:kickcar',b:'DO',bc:'b-orange'}],
-  tr_vortex:[{n:'Vortex / Black Hole',a:'troll:vortex',b:'DO',bc:'b-purple'},{n:'Map Destroyer',a:'troll:map_destroy',b:'DO',bc:'b-red'},{n:'Object Spam',a:'troll:obj_spam',b:'DO',bc:'b-orange'},{n:'Cage Player',a:'troll:cage'},{n:'Attach Object',a:'troll:attach_obj'}],
-  tr_fire:[{n:'Set on Fire',a:'troll:fire',b:'DO',bc:'b-red'},{n:'Set ALL Fire',a:'troll:fire_all',b:'DO',bc:'b-red'},{n:'Extinguish',a:'troll:extinguish',b:'DO',bc:'b-green'},{n:'Thunder Storm',a:'troll:thunder'}],
-  tr_veh:[{n:'Flip Their Car',a:'troll:flip_veh'},{n:'Explode Their Car',a:'troll:explode_veh',b:'DO',bc:'b-red'},{n:'Steal Car Clone',a:'troll:steal_car'},{n:'Ram Their Car',a:'troll:ram'},{n:'Flip Loop',a:'toggle:flip_loop',tog:true},{n:'Eject from Car',a:'troll:kickcar'}],
-  tr_zombie:[{n:'Spawn 3 Zombies',a:'troll:zombies:3',b:'DO',bc:'b-red'},{n:'Spawn 5 Zombies',a:'troll:zombies:5',b:'DO',bc:'b-red'},{n:'Spawn 10 Zombies',a:'troll:zombies:10',b:'DO',bc:'b-red'},{n:'Remove Zombies',a:'troll:rm_zombies',b:'CLR',bc:'b-green'}],
-  tr_sound:[{n:'Police Siren',a:'sound:POLICE_SCANNER'},{n:'Horn Spam',a:'sound:HORN'},{n:'Wasted Sound',a:'sound:WASTED'},{n:'Stop Sounds',a:'sound:STOP',b:'OFF',bc:'b-gray'}],
-  tr_map:[{n:'Fill Objects (20)',a:'troll:fill_objects:20',b:'DO',bc:'b-red'},{n:'Fill Objects (50)',a:'troll:fill_objects:50',b:'DO',bc:'b-red'},{n:'Barrier Wall',a:'troll:barrier_wall'},{n:'Delete Objects',a:'obj_remove',b:'CLR',bc:'b-green'}],
-  tr_anim:[{n:'Force Wave',a:'troll:force_anim:gestures@m@standing@casual:gesture_wave_goodbye'},{n:'Force Hands Up',a:'troll:force_anim:random@getawaydriver:idle_2_hands_up'},{n:'Force Kneel',a:'troll:force_anim:random@arrests:kneeling_arrest_idle'},{n:'Force Floss',a:'troll:force_anim:anim@mp_player_intcelebrationmale@floss:floss'},{n:'Ragdoll Loop',a:'toggle:ragdoll_loop',tog:true}],
-  an_gest:[{n:'Wave',a:'anim:gestures@m@standing@casual:gesture_wave_goodbye'},{n:"Don't Know",a:'anim:gestures@m@standing@casual:gesture_dont_know'},{n:'Respect',a:'anim:gestures@m@standing@casual:gesture_respect'},{n:'Thumbs Up',a:'anim:gestures@m@standing@casual:gesture_thumbsup'},{n:'Shrug',a:'anim:gestures@m@standing@casual:gesture_shrug_stand'},{n:'Sorry',a:'anim:gestures@m@standing@casual:gesture_sorry'},{n:'STOP',a:'stopanim',b:'STOP',bc:'b-red'}],
-  an_emote:[{n:'Phone Call',a:'anim:cellphone@speak_listen_base:cellphone_speak_listen_base'},{n:'Lean on Wall',a:'anim:amb@world_human_leaning@male@wall@back@foot_up@idle_a:idle_a'},{n:'Sit on Ground',a:'anim:amb@world_human_seat_ground@male@idle_a:idle_a'},{n:'Kneel',a:'anim:random@arrests:kneeling_arrest_idle'},{n:'Hands Up',a:'anim:random@getawaydriver:idle_2_hands_up'},{n:'Smoking',a:'anim:amb@world_human_smoking@male@idle_a:idle_a'},{n:'STOP',a:'stopanim',b:'STOP',bc:'b-red'}],
-  an_dance:[{n:'Floss',a:'anim:anim@mp_player_intcelebrationmale@floss:floss'},{n:'Dab',a:'anim:anim@mp_player_intcelebrationmale@dab:dab'},{n:'Twerk',a:'anim:anim@mp_player_intcelebrationmale@twerk:twerk'},{n:'Robot',a:'anim:anim@mp_player_intcelebrationmale@robot:robot'},{n:'Moonwalk',a:'anim:anim@mp_player_intcelebrationmale@moonwalk:moonwalk'},{n:'STOP',a:'stopanim',b:'STOP',bc:'b-red'}],
-  an_action:[{n:'Surrender',a:'anim:mp_arrest_paired:crook_p2_idle'},{n:'Golf Swing',a:'anim:amb@world_human_golf@male@idle_a:idle_a'},{n:'CPR',a:'anim:mini@cpr@char_a@cpr_str:cpr_pumpchest'},{n:'Crawl',a:'anim:move_crawl:onground_scramble'},{n:'STOP',a:'stopanim',b:'STOP',bc:'b-red'}],
-  obj_props:[{n:'Chair',a:'obj:prop_chair_01a'},{n:'Traffic Cone',a:'obj:prop_mp_cone_01'},{n:'Wooden Box',a:'obj:prop_box_wood04a'},{n:'Barrel',a:'obj:prop_barrel_02a'},{n:'Remove All',a:'obj_remove',b:'CLR',bc:'b-green'}],
-  obj_barr:[{n:'Road Barrier',a:'obj:prop_barrier_work05a'},{n:'Police Barrier',a:'obj:prop_mp_barrier_02b'},{n:'Spike Strip',a:'obj:prop_ld_stinger_02'},{n:'Ramp',a:'obj:stt_prop_stunt_ramp_bs_s'}],
-  ct_modes:[{n:'Throw Car (Normal)',a:'throw_car:1',b:'x1'},{n:'Throw Car (Fast)',a:'throw_car:2',b:'x2',bc:'b-orange'},{n:'Throw Car (ULTRA)',a:'throw_car:5',b:'x5',bc:'b-red'},{n:'HOLD Mode',a:'toggle:throw_hold',tog:true},{n:'Throw Nearest',a:'throw_car:nearest'},{n:'Explosion Launch',a:'throw_car:explo',b:'DO',bc:'b-red'}],
-  fc_ctrl:[{n:'Freecam ON/OFF',a:'toggle:freecam',tog:true},{n:'TP to Cam Pos',a:'tp_freecam'},{n:'Speed x1',a:'fc_speed:1',b:'x1'},{n:'Speed x2',a:'fc_speed:2',b:'x2'},{n:'Speed x5',a:'fc_speed:5',b:'x5',bc:'b-red'}],
-  px_explo:[{n:'Firework Burst',a:'fx:proj_xmas_firework'},{n:'Gold Dust',a:'fx:ent_ray_blimp_collision'},{n:'Smoke Cloud',a:'fx:exp_grd_grenade_smoke'},{n:'Cash Rain',a:'fx:cash_rain'},{n:'Fire Trail',a:'fx:ent_ray_fire_trail'},{n:'Stop FX',a:'fx:stop',b:'OFF',bc:'b-gray'}],
-  tr_safe:[{n:'Test Trigger',a:'trigger:test'},{n:'Event Logger',a:'toggle:evtlog',tog:true},{n:'Block Events',a:'toggle:evtblock',tog:true},{n:'── FARMING ──',sep:true},{n:'Zombie Farm',a:'toggle:zombie_farm',tog:true},{n:'Auto Cash',a:'toggle:auto_cash',tog:true}],
-  esx_cash:[{n:'+$500',a:'esx:cash:500'},{n:'+$1,000',a:'esx:cash:1000'},{n:'+$5,000',a:'esx:cash:5000'},{n:'+$10,000',a:'esx:cash:10000'},{n:'+$50,000',a:'esx:cash:50000',b:'HOT',bc:'b-red'},{n:'+$100,000',a:'esx:cash:100000',b:'HOT',bc:'b-red'},{n:'+$1,000,000',a:'esx:cash:1000000',b:'MAX',bc:'b-yellow'}],
-  esx_bank:[{n:'+$10,000',a:'esx:bank:10000'},{n:'+$100,000',a:'esx:bank:100000'},{n:'+$1,000,000',a:'esx:bank:1000000',b:'MAX',bc:'b-yellow'}],
-  esx_job:[{n:'Police G0',a:'esx:job:police:0'},{n:'Police G5',a:'esx:job:police:5'},{n:'EMS G0',a:'esx:job:ambulance:0'},{n:'Mechanic G0',a:'esx:job:mechanic:0'},{n:'Unemployed',a:'esx:job:unemployed:0'}],
-  esx_bag:[{n:'esx_inventoryhud',a:'esx:bag:esx_inventoryhud'},{n:'ox_inventory',a:'esx:bag:ox_inventory'},{n:'Auto-detect',a:'esx:bag:auto'}],
-  esx_items:[{n:'Water x5',a:'esx:item:water:5'},{n:'Bread x5',a:'esx:item:bread:5'},{n:'Medikit x2',a:'esx:item:medikit:2'}],
-  esx_revive:[{n:'Revive Self',a:'esx:revive:self'},{n:'Revive All',a:'esx:revive:all',b:'ALL',bc:'b-yellow'}],
-  esx_police:[{n:'Dispatch',a:'esx:police:dispatch'},{n:'Jail Nearest',a:'esx:police:jail',b:'DO',bc:'b-red'}],
-  qb_cash:[{n:'+$500',a:'qb:cash:500'},{n:'+$1,000',a:'qb:cash:1000'},{n:'+$5,000',a:'qb:cash:5000'},{n:'+$10,000',a:'qb:cash:10000'},{n:'+$50,000',a:'qb:cash:50000',b:'HOT',bc:'b-red'},{n:'+$100,000',a:'qb:cash:100000',b:'HOT',bc:'b-red'},{n:'+$1,000,000',a:'qb:cash:1000000',b:'MAX',bc:'b-yellow'}],
-  qb_bank:[{n:'+$10,000',a:'qb:bank:10000'},{n:'+$100,000',a:'qb:bank:100000'},{n:'+$1,000,000',a:'qb:bank:1000000',b:'MAX',bc:'b-yellow'}],
-  qb_crypto:[{n:'+$500',a:'qb:crypto:500'},{n:'+$5,000',a:'qb:crypto:5000'},{n:'+$50,000',a:'qb:crypto:50000'}],
-  qb_job:[{n:'Police G0',a:'qb:job:police:0'},{n:'Police G4',a:'qb:job:police:4'},{n:'Ambulance G0',a:'qb:job:ambulance:0'},{n:'Mechanic G0',a:'qb:job:mechanic:0'},{n:'Drug Dealer',a:'qb:job:drug_dealer:0'},{n:'Unemployed',a:'qb:job:unemployed:0'}],
-  qb_bag:[{n:'qb-inventory',a:'qb:bag:qb_inventory'},{n:'ox_inventory',a:'qb:bag:ox_inventory'},{n:'Auto-detect',a:'qb:bag:auto'}],
-  qb_keys:[{n:'Give Keys',a:'qb:keys:give'},{n:'Remove Keys',a:'qb:keys:remove',b:'DEL',bc:'b-red'}],
-  qb_items:[{n:'Water x5',a:'qb:item:water:5'},{n:'Bread x5',a:'qb:item:bread:5'},{n:'Weed x10',a:'qb:item:weed:10'}],
-  qb_revive:[{n:'Revive Self',a:'qb:revive:self'},{n:'Revive All',a:'qb:revive:all',b:'ALL',bc:'b-yellow'}],
-  cfg_theme:[{n:'Purple (Default)',a:'theme:purple'},{n:'Ice Blue',a:'theme:ice'},{n:'Blood Red',a:'theme:blood'},{n:'Green',a:'theme:green'},{n:'Gold',a:'theme:gold'}],
-  cfg_hud:[{n:'HUD ON/OFF',a:'toggle:hud',tog:true},{n:'Show HP',a:'toggle:hud_hp',tog:true},{n:'Show Speed',a:'toggle:hud_speed',tog:true},{n:'Show Features',a:'toggle:hud_feats',tog:true}],
-};
-
-let curSection='vehicle',curCat=null,togStates={},selIdx=0;
+let togStates={};
 const menuEl=document.getElementById('menu');
 
-function buildTabs(){
-  const el=document.getElementById('tabs');el.innerHTML='';
-  Object.keys(SECTIONS).forEach(k=>{
-    const t=document.createElement('div');t.className='tab'+(k===curSection?' on':'');t.textContent=SECTIONS[k].name;
-    t.onclick=()=>{curSection=k;curCat=null;selIdx=0;document.querySelectorAll('.tab').forEach(x=>x.classList.remove('on'));t.classList.add('on');showCats();};
-    el.appendChild(t);
+function renderSync(d){
+  const tabsEl=document.getElementById('tabs');
+  tabsEl.innerHTML='';
+  (d.tabs||[]).forEach((name,i)=>{
+    const t=document.createElement('div');
+    t.className='tab'+((i+1)===d.tabIdx?' on':'');
+    t.textContent=name;
+    tabsEl.appendChild(t);
   });
+  const at=tabsEl.querySelector('.tab.on');
+  if(at)at.scrollIntoView({block:'nearest',inline:'center',behavior:'smooth'});
+
+  document.getElementById('b-tab').textContent=d.tabName||'';
+  document.getElementById('b-cat').textContent=d.level==='items'?(d.catName||''):'Categories';
+
+  const listEl=document.getElementById('list');
+  listEl.innerHTML='';
+
+  if(d.level==='tabs'){
+    (d.cats||[]).forEach((name,i)=>{
+      const row=document.createElement('div');
+      row.className='row'+((i+1)===d.catIdx?' on':'');
+      row.innerHTML='<span class="row-text">'+name+'</span><span class="row-right"><span class="row-arrow">›</span></span>';
+      listEl.appendChild(row);
+    });
+  } else if(d.level==='items'){
+    (d.items||[]).forEach((item,i)=>{
+      const row=document.createElement('div');
+      row.className='row'+((i+1)===d.itemIdx?' on':'');
+      let right='';
+      if(item.tog){
+        const on=togStates[item.a]||false;
+        right='<span class="tog'+(on?' on':'')+'"></span>';
+      }
+      row.innerHTML='<span class="row-text">'+item.n+'</span><span class="row-right">'+right+'</span>';
+      listEl.appendChild(row);
+    });
+  }
+
+  const sel=listEl.querySelector('.row.on');
+  if(sel)sel.scrollIntoView({block:'nearest',behavior:'smooth'});
 }
 
-function showCats(){
-  const sec=SECTIONS[curSection];if(!sec)return;curCat=null;
-  document.getElementById('sub-title').textContent=sec.name;
-  document.getElementById('sub-back').classList.remove('show');
-  document.getElementById('hdr-count').textContent=sec.cats.length+' items';
-  const el=document.getElementById('list');el.innerHTML='';
-  sec.cats.forEach((cat,i)=>{
-    const d=document.createElement('div');d.className='li'+(i===0?' on':'');
-    d.innerHTML='<div class="li-icon">'+cat.ic+'</div><div class="li-text">'+cat.n+'</div><div class="li-right"><span class="li-arrow">›</span></div>';
-    d.onclick=()=>{curCat=cat.k;selIdx=0;showItems(cat.k,cat.n);};
-    el.appendChild(d);
-  });selIdx=0;
-}
-
-function showItems(key,name){
-  const items=ITEMS[key];if(!items)return;
-  document.getElementById('sub-title').textContent=name||key;
-  document.getElementById('sub-back').classList.add('show');
-  document.getElementById('hdr-count').textContent=items.filter(x=>!x.sep).length+' items';
-  const el=document.getElementById('list');el.innerHTML='';
-  let realIdx=0;
-  items.forEach((item)=>{
-    if(item.sep){const s=document.createElement('div');s.className='sec-lbl';s.textContent=item.n.replace(/[─ ]/g,'').trim()||item.n;el.appendChild(s);return;}
-    const d=document.createElement('div');d.className='li'+(realIdx===0?' on':'');
-    let right='';
-    if(item.tog){const on=togStates[item.a]||false;right='<div class="sw'+(on?' on':'')+'" data-action="'+item.a+'"></div>';}
-    else if(item.b){right='<span class="li-badge '+(item.bc||'b-purple')+'">'+item.b+'</span>';}
-    d.innerHTML='<div class="li-text">'+item.n+'</div><div class="li-right">'+right+'</div>';
-    d.onclick=()=>{document.querySelectorAll('.li').forEach(x=>x.classList.remove('on'));d.classList.add('on');execAction(item);};
-    el.appendChild(d);realIdx++;
-  });
-}
-
-function goBack(){curCat=null;selIdx=0;showCats();}
-
-function execAction(item){
-  if(!item||!item.a)return;
-  if(item.tog||item.a.startsWith('toggle:')){
-    togStates[item.a]=!togStates[item.a];const on=togStates[item.a];
-    document.querySelectorAll('[data-action="'+item.a+'"]').forEach(sw=>sw.classList.toggle('on',on));
-    addAlert((on?'ON ':'OFF ')+item.a.replace('toggle:',''),on?'ok':'warn');
-  } else {addAlert('Executed: '+item.n,'info');}
-  sendLua({type:'action',action:item.a});
-}
-function sendLua(data){}
-
-let navIdx=0;
 window.addEventListener('message',function(e){
-  const d=e.data;if(!d||!d.type)return;
+  const d=e.data;
+  if(!d||!d.type)return;
   switch(d.type){
-    case 'toggle':if(d.show)menuEl.classList.add('open');else menuEl.classList.remove('open');break;
-    case 'notify':addAlert(d.text,d.color||'info');break;
-    case 'toggle_state':if(d.key!=null){togStates['toggle:'+d.key]=d.value;document.querySelectorAll('[data-action="toggle:'+d.key+'"]').forEach(sw=>sw.classList.toggle('on',d.value));}break;
-    case 'nav':handleNav(d);break;
-    case 'update_hud':
-      const hud=document.getElementById('hud');
-      if(d.visible)hud.classList.add('show');else hud.classList.remove('show');
-      if(d.hp!=null)document.getElementById('hud-hp').textContent=d.hp;
-      if(d.armor!=null)document.getElementById('hud-armor').textContent=d.armor;
-      if(d.speed!=null)document.getElementById('hud-speed').textContent=d.speed+' km/h';
-      if(d.features){const fc=document.getElementById('hud-feats');fc.innerHTML='';d.features.forEach(f=>{const s=document.createElement('span');s.className='hud-feat';s.textContent=f;fc.appendChild(s);});}
+    case 'toggle':
+      if(d.show)menuEl.classList.add('open');
+      else menuEl.classList.remove('open');
+      break;
+    case 'sync':
+      renderSync(d);
+      break;
+    case 'notify':
+      addAlert(d.text,d.color||'info');
+      break;
+    case 'toggle_state':
+      if(d.key!=null){
+        togStates['toggle:'+d.key]=d.value;
+      }
       break;
   }
 });
 
-function handleNav(d){
-  if(d.action==='switchNav'&&d.nav){
-    const map={vehicle:'vehicle',self:'player',weapons:'weapons',teleport:'teleport',weather:'world',abilities:'pvp',esp:'esp',troll:'troll',anims:'anims',objects:'misc',carthrow:'misc',freecam:'misc',esx:'esx',qb:'qb',settings:'settings'};
-    const sec=map[d.nav]||d.nav;if(SECTIONS[sec]){curSection=sec;curCat=null;document.querySelectorAll('.tab').forEach(t=>t.classList.remove('on'));document.querySelectorAll('.tab').forEach(t=>{if(t.textContent===SECTIONS[sec].name)t.classList.add('on');});showCats();}
-  } else if(d.action==='selectCat'){
-    const items=document.querySelectorAll('.li');items.forEach((c,i)=>c.classList.toggle('on',i===(d.catIdx-1)));
-    if(d.catKey&&ITEMS[d.catKey]){curCat=d.catKey;showItems(d.catKey);}
-  } else if(d.action==='enterSub'){
-    if(d.catKey&&ITEMS[d.catKey]){curCat=d.catKey;showItems(d.catKey);}
-  } else if(d.action==='selectItem'){
-    const items=document.querySelectorAll('.li');if(!items.length)return;
-    const idx=Math.max(0,Math.min((d.itemIdx||1)-1,items.length-1));
-    items.forEach((it,i)=>{it.classList.toggle('on',i===idx);if(i===idx)it.scrollIntoView({block:'nearest',behavior:'smooth'});});
-  } else if(d.action==='executeItem'){
-    const items=document.querySelectorAll('.li');const idx=d.itemIdx>0?d.itemIdx-1:0;if(items[idx])items[idx].click();
-  } else if(d.action==='goBack'){goBack();}
-}
-
-buildTabs();showCats();
-addAlert('K2 MENU v5.0 — LOADED','ok');
-setTimeout(()=>addAlert('Press F9 to toggle','info'),1000);
+addAlert('K2 MENU v6.0 LOADED','ok');
+setTimeout(()=>addAlert('Press F9 to open','info'),800);
 </script>
 </body>
 </html>
