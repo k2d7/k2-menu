@@ -1160,7 +1160,7 @@ function switchNav(key){
   const d=NAV[key]; if(!d) return;
   // Slide cat panel
   const catBody=document.getElementById('cat-body');
-  catBody.style.opacity='0';
+  catBody.style.opacity='1';
   catBody.style.transform='translateX(6px)';
   document.getElementById('cat-lbl').textContent=d.lbl;
   document.getElementById('cat-name').textContent=d.name;
