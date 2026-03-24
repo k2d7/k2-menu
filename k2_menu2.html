@@ -290,48 +290,28 @@ html,body{width:100vw;height:100vh;overflow:hidden;background:transparent;
   <div class="kk"><kbd>F6</kbd>Close</div>
 </div>
 
-<<script>
-let curCat = null;
-let navIdx = 0;
-
-// دالة فك التشفير واستقبال الأوامر
-window.addEventListener('message', (event) => {
-    let d = event.data;
-    
-    // تصحيح مهم: إذا كانت البيانات نصية، قم بتحويلها لكائن
-    if (typeof d === 'string') {
-        try { d = JSON.parse(d); } catch (e) { console.log("JSON Parse Error"); }
-    }
-
-    console.log("Received Action:", d.action); // للديبرق
-
-    if (d.action === 'show') {
-        document.querySelector('.cont').style.opacity = "1"; // إظهار المنيو فوراً
-        document.querySelector('.cont').classList.add('on');
-        if (!curCat) renderItems('MAIN');
-    } else if (d.action === 'hide') {
-        document.querySelector('.cont').style.opacity = "0";
-        document.querySelector('.cont').classList.remove('on');
-    }
-    
-    // باقي الوظائف (تغيير الأيتم، التنقل، إلخ)
-    if (d.action === 'selectItem') {
-        const items = document.querySelectorAll('.li');
-        if (items.length > 0) {
-            navIdx = (d.itemIdx > items.length) ? items.length - 1 : (d.itemIdx < 1 ? 0 : d.itemIdx - 1);
-            updateHL(navIdx);
-        }
-    }
-});
-
-// دالة إرسال الأوامر للـ Lua
-function exec(action) {
-    fetch(`https://${GetParentResourceName()}/executeAction`, {
-        method: 'POST',
-        body: JSON.stringify({ action: action })
-    });
-}
-</script>
+<script>
+// ══ SNOW ══
+const cv=document.getElementById('snow'),cx=cv.getContext('2d');
+let W,H;
+function rsz(){W=cv.width=innerWidth;H=cv.height=innerHeight;}rsz();
+addEventListener('resize',rsz);
+const fl=Array.from({length:65},()=>({
+  x:Math.random()*1920,y:Math.random()*1080,
+  r:Math.random()*1.4+.3,s:Math.random()*.35+.08,
+  d:(Math.random()-.5)*.14,a:Math.random()*.2+.04
+}));
+(function loop(){
+  cx.clearRect(0,0,W,H);
+  fl.forEach(f=>{
+    cx.beginPath();cx.arc(f.x,f.y,f.r,0,Math.PI*2);
+    cx.fillStyle=`rgba(255,255,255,${f.a})`;cx.fill();
+    f.y+=f.s;f.x+=f.d;
+    if(f.y>H+4){f.y=-4;f.x=Math.random()*W;}
+    if(f.x<0)f.x=W;if(f.x>W)f.x=0;
+  });
+  requestAnimationFrame(loop);
+})();
 
 // ══ ALERTS ══
 let aid=0;
@@ -1180,7 +1160,7 @@ function switchNav(key){
   const d=NAV[key]; if(!d) return;
   // Slide cat panel
   const catBody=document.getElementById('cat-body');
-  catBody.style.opacity='1';
+  catBody.style.opacity='0';
   catBody.style.transform='translateX(6px)';
   document.getElementById('cat-lbl').textContent=d.lbl;
   document.getElementById('cat-name').textContent=d.name;
@@ -1216,7 +1196,7 @@ function renderItems(key){
   const el=document.getElementById('items-body');
   const titleEl=document.getElementById('items-title');
   // Smooth slide
-  el.style.opacity='1';el.style.transform='translateX(6px)';
+  el.style.opacity='0';el.style.transform='translateX(6px)';
   setTimeout(()=>{
     el.innerHTML='';
     el.style.transition='all .13s ease';
@@ -1337,10 +1317,12 @@ function sendLua(data){
 let navItems=[], navIdx=0;
 window.addEventListener('message',function(e){
   const d=e.data; if(!d||!d.type) return;
+  console.log('[K2-HTML] Received message:', d.type, d);
   switch(d.type){
     case 'toggle':
       if(d.show) menuEl.classList.add('open');
       else menuEl.classList.remove('open');
+      console.log('[K2-HTML] Menu toggled:', d.show);
       break;
     case 'notify':
       addAlert(d.text, d.color||'info');
@@ -1353,6 +1335,10 @@ window.addEventListener('message',function(e){
       break;
     case 'nav':
       handleNav(d);
+      break;
+    case 'update_hud':
+      // HUD data from Lua (hp, armor, speed, features)
+      console.log('[K2-HTML] HUD update:', d);
       break;
   }
 });
@@ -1407,6 +1393,7 @@ function updateHL(idx){
 document.querySelectorAll('.ri').forEach(ri=>{ri.onclick=()=>switchNav(ri.dataset.nav);});
 document.getElementById('items-back').onclick=()=>{navIdx=0;renderItems(curCat);setTimeout(()=>updateHL(0),120);};
 switchNav('vehicle');
+console.log('[K2-HTML] Page fully loaded and initialized!');
 addAlert('K2 MENU v5.0 — LOADED','ok');
 setTimeout(()=>addAlert('Press F9 to toggle menu','info'),1500);
 </script>
