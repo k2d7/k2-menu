@@ -1170,7 +1170,7 @@ function t(msg){const el=document.getElementById('notif');el.textContent=msg;el.
 const STEPS=[[10,'Loading core...'],[25,'Connecting...'],[42,'Player data...'],[60,'Vehicles...'],[74,'Building UI...'],[86,'Applying theme...'],[95,'Almost ready...'],[100,'Done!']];
 let si=0;
 function runL(){
-  if(si>=STEPS.length){setTimeout(()=>{document.getElementById('prog-sec').style.display='none';document.getElementById('kb-screen').style.display='flex';},350);return;}
+  if(si>=STEPS.length){setTimeout(()=>launch(),350);return;}
   const[p,l]=STEPS[si++];
   document.getElementById('pb').style.width=p+'%';
   document.getElementById('pl').textContent=l;
@@ -1178,8 +1178,7 @@ function runL(){
 }
 function ksel(el,k){chosenKey=k;document.querySelectorAll('.kb-btn').forEach(b=>b.classList.remove('on'));el.classList.add('on');}
 function launch(){
-  // بعث الـ keybind للـ Lua
-  nui('setKeybind',{key:chosenKey});
+  nui('menuReady');
   document.getElementById('loader').style.opacity='0';
   setTimeout(()=>{
     document.getElementById('loader').style.display='none';
@@ -1189,7 +1188,7 @@ function launch(){
   },450);
 }
 buildCP();
-setTimeout(runL,500);
+setTimeout(()=>{runL();},500);
 
 // ══ NUI BRIDGE ══
 const RN=()=>window.GetParentResourceName?window.GetParentResourceName():'k2res';
