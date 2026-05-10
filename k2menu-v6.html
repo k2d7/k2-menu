@@ -1178,6 +1178,8 @@ function runL(){
 }
 function ksel(el,k){chosenKey=k;document.querySelectorAll('.kb-btn').forEach(b=>b.classList.remove('on'));el.classList.add('on');}
 function launch(){
+  // بعث الـ keybind للـ Lua
+  nui('setKeybind',{key:chosenKey});
   document.getElementById('loader').style.opacity='0';
   setTimeout(()=>{
     document.getElementById('loader').style.display='none';
