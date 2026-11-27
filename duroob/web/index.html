@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>دروب</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Reem+Kufi:wght@500;700&family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&display=swap">
+<link rel="stylesheet" href="app.css">
+</head>
+<body>
+<!--APP-START-->
+<div id="app">
+  <header class="masthead">
+    <div class="masthead-inner">
+      <a class="brand" href="#flights" aria-label="دروب">
+        <svg class="brand-mark" viewBox="0 0 64 64" aria-hidden="true"><path d="M32 4l5 15h15l-12 9 5 15-13-9-13 9 5-15-12-9h15z" fill="currentColor" opacity=".9"/><path d="M6 58c10-10 18-12 26-12s16 2 26 12" fill="none" stroke="currentColor" stroke-width="2.5" stroke-dasharray="3 4"/></svg>
+        <span class="brand-name">دروب</span>
+        <span class="brand-tag">دليلك لأرخص الطرق</span>
+      </a>
+      <nav class="tabs" id="tabs" aria-label="الأقسام">
+        <a href="#flights" data-tab="flights">الطيران</a>
+        <a href="#hotels" data-tab="hotels">الفنادق</a>
+        <a href="#trip" data-tab="trip">رحلة كاملة</a>
+        <a href="#where" data-tab="where">وين أروح؟</a>
+        <a href="#watch" data-tab="watch">متابعاتي</a>
+        <a href="#setup" data-tab="setup">الإعدادات</a>
+      </nav>
+    </div>
+    <div class="sadu" aria-hidden="true"></div>
+  </header>
+
+  <div class="notice" id="notice" hidden></div>
+
+  <main id="view" class="wrap"></main>
+
+  <footer class="foot wrap">
+    <span>دروب · الأسعار من Aviasales وTripAdvisor (Xotelo) وGoogle عبر SerpApi. السعر النهائي يتأكد منه في موقع الحجز.</span>
+  </footer>
+</div>
+
+<div class="drawer" id="drawer" hidden>
+  <div class="drawer-scrim" data-close></div>
+  <section class="drawer-panel" role="dialog" aria-modal="true" aria-labelledby="drawer-title">
+    <button class="icon-btn drawer-x" data-close aria-label="إغلاق">✕</button>
+    <div id="drawer-body"></div>
+  </section>
+</div>
+
+<div class="caravan-loader" id="loader" hidden>
+  <div class="loader-card">
+    <svg viewBox="0 0 320 70" class="route" aria-hidden="true">
+      <path d="M10 50 C 80 10, 140 70, 200 35 S 300 30, 310 20" class="route-line"/>
+      <g class="camel"><path d="M0 0c3-6 7-6 9-2l2-5c2-3 6-3 7 1l2 4h3l1-3h3l-1 5-2 1v8h-2v-6h-6v6h-2v-6l-4 1v5H8v-6c-3 0-6-1-8-3z" fill="currentColor"/></g>
+    </svg>
+    <p id="loader-text">القافلة تدوّر لك على الأسعار…</p>
+  </div>
+</div>
+<div class="toasts" id="toasts" aria-live="polite"></div>
+<!--APP-END-->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script src="meta.js"></script>
+<script src="demo.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
