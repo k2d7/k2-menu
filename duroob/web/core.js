@@ -453,7 +453,25 @@
   }
 
   // ------------------------------------------------------------------ links
-  const gFlights = (o, d, dep, ret) => "https://www.google.com/travel/flights?q=" + enc(`Flights from ${o} to ${d} on ${dep}${ret ? " through " + ret : " one way"}`);
+  // Google Flights link that opens on the exact search: "tfs" is a small protobuf (same as Google's own links).
+  const CITY_MAIN = { LON: "LHR", PAR: "CDG", ROM: "FCO", MIL: "MXP", MOW: "SVO", NYC: "JFK", TYO: "HND", SEL: "ICN", OSA: "KIX", BJS: "PEK", JKT: "CGK" };
+  function gTfs(legs, pax, opts = {}) {
+    const m = [], varint = (a, n) => { while (n > 127) { a.push((n & 127) | 128); n = Math.floor(n / 128); } a.push(n); };
+    const num = (a, f, n) => { varint(a, f * 8); varint(a, n); };
+    const bytes = (a, f, d) => { const b = typeof d === "string" ? Array.from(new TextEncoder().encode(d)) : d; varint(a, f * 8 + 2); varint(a, b.length); a.push(...b); };
+    const ap = c => { const a = []; num(a, 1, 1); bytes(a, 2, CITY_MAIN[c] || c); return a; };
+    num(m, 1, 28); num(m, 2, 2);
+    legs.forEach(([date, a, b], i) => { const fd = []; bytes(fd, 2, date); if (opts.direct) num(fd, 5, 0); if (opts.airline && i === 0) bytes(fd, 6, opts.airline); bytes(fd, 13, ap(a)); bytes(fd, 14, ap(b)); bytes(m, 3, fd); });
+    for (const [kind, n] of [[1, pax.adults || 1], [2, pax.children || 0], [4, pax.infants || 0]]) for (let i = 0; i < n; i++) num(m, 8, kind);
+    num(m, 9, opts.cls || 1); num(m, 14, 1); num(m, 19, legs.length === 2 && legs[1][1] === legs[0][2] ? 1 : 2);
+    return btoa(String.fromCharCode(...m)).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+  }
+  function gFlights(o, d, dep, ret, opts = {}) {
+    const ok = x => /^\d{4}-\d{2}-\d{2}$/.test(x || "");
+    if (!ok(dep) || (ret && !ok(ret))) return `https://www.google.com/travel/flights?hl=${I18N.LANG}&q=` + enc(`Flights from ${o} to ${d}${dep ? " on " + dep : ""}`);
+    const legs = [[dep, o, d]].concat(ret ? [[ret, d, o]] : []);
+    return `https://www.google.com/travel/flights?hl=${I18N.LANG}&gl=sa&curr=${I18N.CUR || "SAR"}&tfs=${gTfs(legs, opts.pax || party(), opts)}&tfu=EgIIAQ`;
+  }
   const gMaps = (name, city) => "https://www.google.com/maps/search/?api=1&query=" + enc(`${name} ${city || ""}`.trim());
   const gHotels = (name, city) => "https://www.google.com/travel/search?q=" + enc(`${name} ${city || ""}`.trim());
   function otaLink(site, h, ctx) {

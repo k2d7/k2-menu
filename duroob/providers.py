@@ -9,8 +9,10 @@ Every function returns plain dicts that the web UI understands. Prices are in SA
 """
 from __future__ import annotations
 
+import base64
 import datetime
 import json
+import re
 import threading
 import time
 import urllib.error
@@ -420,9 +422,56 @@ def serp_hotel_detail(key, token, query, chk_in, chk_out, adults, children_ages)
     return uniq
 
 
-def gflights_link(origin, destination, depart, ret=None):
-    q = f"Flights from {origin} to {destination} on {depart}" + (f" through {ret}" if ret else " one way")
-    return "https://www.google.com/travel/flights?q=" + urllib.parse.quote(q)
+# Google Flights links: the "tfs" code is a small protobuf holding the legs, passengers and filters, so the page
+# opens on that exact search (a plain ?q= search is ignored by the Google app and some phones).
+def _pb_varint(n):
+    n = n + (1 << 64) if n < 0 else n
+    out = bytearray()
+    while True:
+        b, n = n & 0x7F, n >> 7
+        out.append(b | 0x80 if n else b)
+        if not n:
+            return bytes(out)
+
+
+def _pb_num(field, n):
+    return _pb_varint(field << 3) + _pb_varint(n)
+
+
+def _pb_bytes(field, data):
+    data = data.encode() if isinstance(data, str) else data
+    return _pb_varint((field << 3) | 2) + _pb_varint(len(data)) + data
+
+
+def gflights_tfs(legs, adults=1, children=0, infants=0, cls=1, direct=False, airline=None):
+    """legs: [(YYYY-MM-DD, from, to), ...]. Matches the links Google Flights itself makes."""
+    msg = _pb_num(1, 28) + _pb_num(2, 2)
+    for i, (date, a, b) in enumerate(legs):
+        fd = _pb_bytes(2, date)
+        if direct:
+            fd += _pb_num(5, 0)
+        if airline and i == 0:
+            fd += _pb_bytes(6, airline)
+        fd += _pb_bytes(13, _pb_num(1, 1) + _pb_bytes(2, g_code(a))) + _pb_bytes(14, _pb_num(1, 1) + _pb_bytes(2, g_code(b)))
+        msg += _pb_bytes(3, fd)
+    for kind, n in ((1, adults), (2, children), (4, infants)):
+        msg += _pb_num(8, kind) * max(0, int(n or 0))
+    msg += _pb_num(9, int(cls or 1)) + _pb_num(14, 1) + _pb_num(19, 1 if len(legs) == 2 and legs[1][1] == legs[0][2] else 2)
+    return base64.urlsafe_b64encode(msg).decode().rstrip("=")
+
+
+DATE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
+
+
+def gflights_link(origin, destination, depart, ret=None, adults=1, children=0, infants=0, cls=1, direct=False, airline=None):
+    depart, ret = (depart or "")[:10], (ret or "")[:10] or None
+    if not DATE_RE.match(depart) or (ret and not DATE_RE.match(ret)):
+        q = f"Flights from {origin} to {destination}" + (f" on {depart}" if depart else "")
+        return "https://www.google.com/travel/flights?hl=ar&q=" + urllib.parse.quote(q)
+    legs = [(depart, origin, destination)] + ([(ret, destination, origin)] if ret else [])
+    al = airline if airline and re.fullmatch(r"[A-Z0-9]{2}", str(airline)) else None
+    return ("https://www.google.com/travel/flights?hl=ar&gl=sa&curr=SAR&tfs="
+            + gflights_tfs(legs, adults, children, infants, cls, direct, al) + "&tfu=EgIIAQ")
 
 
 def serp_calendar(key, origin, destination, start, end, one_way=True, nights=None, direct=False):
@@ -556,7 +605,8 @@ def serp_flights(key, origin, destination, depart, ret, adults, children, infant
                 "duration_to": f.get("total_duration"),
                 "duration": f.get("total_duration"),
                 "layovers": [l.get("id") for l in f.get("layovers") or []],
-                "link": None,
+                "link": gflights_link(origin, destination, depart, ret, adults, children, infants, cls,
+                                      direct=stops == 1, airline=_al_code(first)),
                 "best": group == "best_flights",
             })
     insights = data.get("price_insights") or {}
