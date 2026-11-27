@@ -47,7 +47,7 @@
 
 * { box-sizing: border-box; }
 [hidden] { display: none !important; }
-html { -webkit-text-size-adjust: 100%; }
+html { -webkit-text-size-adjust: 100%; touch-action: manipulation; } /* no double-tap zoom; pinch zoom still works */
 body { margin: 0; color: var(--ink); font: 15px/1.65 var(--f); background: var(--ground); }
 button, input, select, textarea { font: inherit; color: inherit; }
 a { color: var(--gold-deep); }
@@ -594,3 +594,9 @@ details.keys > summary::after { content: "+"; margin-inline-start: auto; color: 
 details.keys[open] > summary::after { content: "−"; }
 .ask { grid-template-columns: minmax(0, 1fr); }
 .ask-row input { width: 0; flex: 1 1 auto; }
+
+/* iPhone zooms the page when a field's text is under 16px; keep fields at 16px on phones and touch screens. */
+@media (max-width: 900px), (pointer: coarse) {
+  input, select, textarea, .input, select.input, textarea.input, .prefs .input, .ask-row input { font-size: 16px !important; }
+}
+button, a, input, select, textarea, label, summary { touch-action: manipulation; }
