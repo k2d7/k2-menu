@@ -61,7 +61,8 @@
   async function boot() {
     try {
       const r = await Promise.race([fetch("api/ping", { cache: "no-store" }), new Promise((_, j) => setTimeout(() => j(new Error("t")), 1500))]);
-      if (r.ok && (await r.json()).app === "duroob") X.mode = "live";
+      const pj = r.ok ? await r.json() : {};
+      if (pj.app === "duroob") { X.mode = "live"; X.web = !!pj.web; }
     } catch (e) { X.mode = "demo"; }
     const load = async (f, def) => { try { return await (await fetch("data/" + f)).json(); } catch (e) { return def; } };
     [X.cities, X.climate, X.airports] = await Promise.all([load("cities.json", []), load("climate.json", {}), load("airports.json", {})]);
@@ -69,7 +70,9 @@
     S.settings = await api("settings");
     try { const fx = await api("fx"); I18N.setFx(fx.rates, fx.live); } catch (e) { /* keep built-in rates */ }
     for (const k of ["groups", "favorites", "watches", "history", "prefs", "seasons", "baggage", "trips", "holidays"]) {
-      const v = (await api("store/" + k)).value;
+      let v = null;
+      if (X.web) { try { v = JSON.parse(I18N.store.get("store:" + k, "null")); } catch (e) { v = null; } }
+      else v = (await api("store/" + k)).value;
       if (v != null) S[k] = v;
     }
     if (!S.prefs || typeof S.prefs !== "object") S.prefs = {};
@@ -79,6 +82,7 @@
     bindNav();
     window.addEventListener("hashchange", route);
     route();
+    if (X.mode === "live" && "serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(() => {});
     if (X.mode === "live") {
       setInterval(() => fetch("api/ping").catch(() => {}), 20000);
       setTimeout(() => autoCheckWatches(false), 4000);
@@ -103,7 +107,10 @@
     }
     return data;
   }
-  async function save(k) { await api("store/" + k, null, { value: S[k] }); }
+  async function save(k) {
+    if (X.web) { I18N.store.set("store:" + k, JSON.stringify(S[k])); return; }
+    await api("store/" + k, null, { value: S[k] });
+  }
 
   // ------------------------------------------------------------------ ui helpers
   let loaderTimer = null;
@@ -118,7 +125,7 @@
   function notice() {
     const el = $("#notice"); let html = "";
     if (X.mode === "demo") html = tx("<b>نسخة تجربة.</b> كل الأسعار هنا تجريبية للعرض فقط. الأسعار الحقيقية تشتغل في نسخة الكمبيوتر.");
-    else if (!S.settings.has_tp) html = `<b>${tx("الطيران يعرض أسعار تجريبية")}</b> ${tx("لين تحط مفتاح Travelpayouts المجاني. الفنادق أسعارها حقيقية.")} <a href="#setup">${tx("حط المفتاح")}</a>`;
+    else if (!S.settings.has_tp) html = `<b>${tx("الطيران يعرض أسعار تجريبية")}</b> ${tx("لين تحط مفتاح Travelpayouts المجاني. الفنادق أسعارها حقيقية.")} ${X.web ? "" : `<a href="#setup">${tx("حط المفتاح")}</a>`}`;
     el.innerHTML = html ? `<div class="wrap">${html}</div>` : ""; el.hidden = !html;
   }
   function openDrawer(html) { $("#drawer-body").innerHTML = html; $("#drawer").hidden = false; document.body.style.overflow = "hidden"; $(".drawer-x").focus(); }
@@ -133,11 +140,19 @@
   const segVal = (root, name) => { const b = $(`[data-seg="${name}"] button[aria-pressed="true"]`, root); return b ? b.dataset.v : null; };
   const setSeg = (root, name, v) => $$(`[data-seg="${name}"] button`, root).forEach(x => x.setAttribute("aria-pressed", x.dataset.v === v));
   const waLink = text => "https://wa.me/?text=" + enc(text);
-  function hero(key, title, actions) {
-    const [eyebrow, lore] = META.lore[key] || ["", ""];
-    return `<header class="hero"><svg class="orn" aria-hidden="true"><use href="#s-khatam"/></svg>
-      <span class="eyebrow">${esc(eyebrow)}</span><h1>${esc(title)}</h1><p class="lore">${esc(lore)}</p>${actions ? `<div class="hero-actions">${actions}</div>` : ""}</header>`;
+  function hero(key, title, actions, back) {
+    const [eyebrow] = META.lore[key] || [""];
+    return `<header class="hero">${back ? `<a class="back" href="${back[0]}">‹ ${esc(back[1])}</a>` : ""}
+      ${eyebrow ? `<span class="eyebrow">${esc(eyebrow)}</span>` : ""}<h1>${esc(title)}</h1>${actions ? `<div class="hero-actions">${actions}</div>` : ""}</header>`;
   }
+  // A simple list of big buttons in the drawer (keeps result cards short).
+  function actionsDrawer(title, items) {
+    openDrawer(`<h2 id="drawer-title">${esc(title)}</h2><div class="action-list">${items.map((it, i) => it.href
+      ? `<a class="action" href="${esc(it.href)}" target="_blank" rel="noopener">${it.icon || ""}<span>${esc(it.label)}</span></a>`
+      : `<button type="button" class="action" data-ai="${i}">${it.icon || ""}<span>${esc(it.label)}</span></button>`).join("")}</div>`);
+    $$("[data-ai]").forEach(b => b.addEventListener("click", () => items[Number(b.dataset.ai)].onClick(b)));
+  }
+  const more = label => `<details class="more"><summary>${tx("خيارات أكثر")}</summary><div class="more-body">${label}</div></details>`;
 
   // ------------------------------------------------------------------ travelers
   const year = new Date().getFullYear();
@@ -273,8 +288,52 @@
     return `<section class="panel info-strip" aria-label="${tx("عن الوجهة")}">
       <div class="info"><span class="lbl">${ICON.sun} ${tx("الجو في")} ${esc(monthName(month))}</span>${cl ? `<b>${esc(feel(cl))} · ${cl.lo}° – ${cl.hi}°</b><span class="small muted">${cl.rain >= 8 ? tx("أمطار كثيرة") : cl.rain >= 3 ? tx("أمطار أحياناً") : tx("قليل المطر")} (${P(cl.rain, "day")} ${tx("بالشهر تقريباً")})</span>` : tx('<span class="small muted">ما عندنا بيانات</span>')}</div>
       ${v ? `<div class="info"><span class="lbl">${ICON.pass} ${tx("التأشيرة للجواز السعودي")}</span><b class="${v.cls}">${esc(v.label)}</b><span class="small muted">${v.sure ? "" : tx("غير مؤكد · ")}${tx("تحديث")} ${esc(META.visa.updated)} · <a href="${esc(visaCheckLink(c.country))}" target="_blank" rel="noopener">${tx("تأكد قبل السفر")}</a></span></div>` : ""}
+      ${countryInfo(c, month)}
       ${dc ? `<div class="info"><span class="lbl">${ICON.wallet} ${tx("مصروف يومي تقريبي")}</span><b>${sar(dc)} ${tx("للشخص")}</b><span class="small muted">${tx("أكل ومواصلات")}${nights ? ` · ${P(nights, "day")} ${tx("لـ")}${P(people || 1, "person")}: ${sar(dc * nights * (people || 1))}` : ""} ${tx("(تقديري)")}</span></div>` : ""}
     </section>`;
+  }
+
+  function countryInfo(c, month) {
+    const k = window.DX && DX.countryCard(c, month + "-15"); if (!k) return "";
+    const diff = k.diff === 0 ? tx("نفس توقيت السعودية") : `${k.diff > 0 ? "+" : "−"}${Math.abs(k.diff)} ${tx("ساعة عن السعودية")}`;
+    return `<div class="info"><span class="lbl">${ICON.map} ${tx("بطاقة الدولة")}</span><b>${esc(diff)}</b>
+      <span class="small muted">${tx("الفيش")} ${esc(k.plugs)}${k.adapter ? " · " + tx("تحتاج محوّل") : ""} · ${k.drive === "L" ? tx("السواقة يسار") : tx("السواقة يمين")} · ${tx("الطوارئ")} ${esc(k.emergency)}</span>
+      <button type="button" class="link-btn" data-place="${esc(c.id)}">${tx("أوقات الصلاة والقبلة والمساجد")}</button></div>`;
+  }
+  // Prayer times, qibla, and mosques / halal food near a city's landmark.
+  async function placeDrawer(cid, date) {
+    const c = X.cities.find(x => x.id === cid); if (!c) return;
+    const lm = c.landmarks[0], k = DX.countryCard(c, date), day = date || today();
+    const pt = DX.prayerTimes(day, lm.lat, lm.lng, k ? k.tz : "Asia/Riyadh"), q = Math.round(DX.qibla(lm.lat, lm.lng));
+    const names = { fajr: tx("الفجر"), sunrise: tx("الشروق"), dhuhr: tx("الظهر"), asr: tx("العصر"), maghrib: tx("المغرب"), isha: tx("العشاء") };
+    openDrawer(`<h2 id="drawer-title">${esc(L(c))}</h2><p class="muted" style="margin:0">${esc(fmtDayLong(day))} · ${tx("بتوقيت المدينة")}</p>
+      <section class="panel panel-pad"><h3 class="sub" style="margin-bottom:8px">${tx("أوقات الصلاة")}</h3>
+        <div class="prayer-grid">${Object.entries(pt).map(([kk, v]) => `<div><span class="small muted">${names[kk]}</span><b class="num">${v}</b></div>`).join("")}</div>
+        <p class="small muted" style="margin:8px 0 0">${tx("محسوبة على تقويم أم القرى. في البلدان الشمالية بالصيف تكون تقريبية.")}</p></section>
+      <section class="panel panel-pad qibla-row"><svg viewBox="0 0 100 100" class="compass" aria-hidden="true"><circle cx="50" cy="50" r="44" fill="none" stroke="var(--line)" stroke-width="2"/><text x="50" y="16" text-anchor="middle" font-size="10" fill="var(--ink-soft)">N</text><g transform="rotate(${q} 50 50)"><path d="M50 14 L57 50 L50 44 L43 50 Z" fill="var(--gold)"/></g></svg>
+        <div><h3 class="sub">${tx("اتجاه القبلة")}</h3><b class="num" style="font-size:22px">${q}°</b><div class="small muted">${tx("من الشمال باتجاه عقارب الساعة")}</div></div></section>
+      <section class="panel panel-pad"><h3 class="sub" style="margin-bottom:8px">${tx("مساجد ومطاعم حلال قريبة")} · ${esc(L(lm))}</h3><div id="nearby" class="small muted">${tx("نجيبها من خرائط OpenStreetMap…")}</div></section>`);
+    try {
+      const r = await api("nearby", { lat: lm.lat, lng: lm.lng, radius: 1500 });
+      const list = (r.places || []).map(p => Object.assign(p, { d: km(lm.lat, lm.lng, p.lat, p.lng) })).sort((a, b) => a.d - b.d);
+      const box = $("#nearby"); if (!box) return;
+      const row = p => `<a class="near" href="${esc(gMaps((I18N.LANG === "en" ? p.name_en || p.name : p.name) || (p.kind === "mosque" ? "mosque" : "halal restaurant"), `${p.lat},${p.lng}`))}" target="_blank" rel="noopener"><span>${p.kind === "mosque" ? "🕌" : "🍽"} ${esc((I18N.LANG === "en" ? p.name_en || p.name : p.name) || (p.kind === "mosque" ? tx("مسجد") : tx("مطعم حلال")))}</span><span class="num">${p.d < 1 ? Math.round(p.d * 1000) + " " + tx("م") : p.d.toFixed(1) + " " + tx("كم")}</span></a>`;
+      const ms = list.filter(p => p.kind === "mosque").slice(0, 6), hs = list.filter(p => p.kind === "halal").slice(0, 6);
+      box.className = "nearby-cols";
+      box.innerHTML = `<div><div class="lbl">${tx("مساجد")}</div>${ms.map(row).join("") || `<span class="small muted">${tx("ما لقينا قريب")}</span>`}</div><div><div class="lbl">${tx("مطاعم حلال")}</div>${hs.map(row).join("") || `<span class="small muted">${tx("ما لقينا قريب")}</span>`}</div>`;
+    } catch (e) { const box = $("#nearby"); if (box) box.textContent = e.message; }
+  }
+  document.addEventListener("click", e => { const b = e.target.closest("[data-place]"); if (b) placeDrawer(b.dataset.place, b.dataset.date); });
+  // A picture card of a trip/hotel/flight to send on WhatsApp or Snapchat.
+  async function showCard(info) {
+    let card; try { card = await DX.shareCard(info); } catch (e) { toast(e.message); return; }
+    const file = new File([card.blob], "duroob.png", { type: "image/png" });
+    const canShare = navigator.canShare && navigator.canShare({ files: [file] });
+    openDrawer(`<h2 id="drawer-title">${tx("بطاقة للمشاركة")}</h2><img class="share-img" src="${card.url}" alt="${esc(info.title)}">
+      <div class="row" style="justify-content:center">${canShare ? `<button type="button" class="btn btn-primary" id="card-share">${ICON.share} ${tx("شارك الصورة")}</button>` : ""}
+        <a class="btn btn-ghost" href="${card.url}" download="duroob.png">${tx("حفظ الصورة")}</a></div>
+      <p class="small muted" style="margin:0;text-align:center">${tx("إذا ما اشتغل الزر، اضغط على الصورة مطولاً واحفظها.")}</p>`);
+    const b = $("#card-share"); b && b.addEventListener("click", () => navigator.share({ files: [file], title: info.title }).catch(() => {}));
   }
 
   // ------------------------------------------------------------------ seasons + calendars
@@ -355,7 +414,9 @@
     if (!S.watches || !S.watches.length) { if (manual) toast(tx("ما عندك متابعات للحين")); return null; }
     if (!manual && Date.now() - Number(S.prefs.lastCheck || 0) < 3 * 3600 * 1000) return null;
     let res;
-    try { res = await api("watch/check", null, {}); } catch (e) { if (manual) toast(e.message); return null; }
+    const body = X.web ? { watches: S.watches, ntfy_topic: S.prefs.alertsOn ? S.prefs.ntfyTopic : "" } : {};
+    try { res = await api("watch/check", null, body); } catch (e) { if (manual) toast(e.message); return null; }
+    if (X.web) save("watches");
     S.watches = res.watches; S.prefs.lastCheck = Date.now(); save("prefs");
     const alerts = res.results.filter(r => r.alert || r.dropped || r.below_target);
     for (const d of alerts) {
@@ -435,21 +496,14 @@
     cs.value = I18N.CUR;
     cs.addEventListener("change", () => { I18N.setCur(cs.value); route(); toast(tx("العملة") + ": " + I18N.CUR_NAMES[cs.value][I18N.LANG === "en" ? 1 : 0]); });
   }
-  function bindNav() {
-    bindPrefs();
-    const rail = $("#rail"), scrim = $("#scrim"), btn = $("#menu-btn");
-    const set = open => { rail.classList.toggle("open", open); scrim.classList.toggle("show", open); btn.setAttribute("aria-expanded", open); };
-    btn.addEventListener("click", () => set(!rail.classList.contains("open")));
-    scrim.addEventListener("click", () => set(false));
-    $("#route").addEventListener("click", e => { if (e.target.closest("a")) set(false); });
-  }
+  function bindNav() { bindPrefs(); }
+  const TAB_OF = { trip: "plan", budget: "plan", multi: "plan", where: "plan", best: "plan", umrah: "plan", holidays: "plan", watch: "trips" };
   let cleanup = [];
   function route() {
     const name = (location.hash || "#home").slice(1);
     const page = PAGES[name] ? name : "home";
-    $$("#route .station").forEach(a => a.setAttribute("aria-current", a.dataset.tab === page ? "page" : "false"));
-    const st = $(`#route .station[data-tab="${page}"] .st-name`);
-    $("#menu-label").textContent = st ? st.textContent : tx("الأقسام");
+    const tab = TAB_OF[page] || page;
+    $$("#route .station, #tabbar a").forEach(a => a.setAttribute("aria-current", a.dataset.tab === tab ? "page" : "false"));
     cleanup.forEach(f => { try { f(); } catch (e) { /* ignore */ } }); cleanup = [];
     const old = $("#view"), fresh = old.cloneNode(false); old.replaceWith(fresh);
     notice();
@@ -457,6 +511,10 @@
     window.scrollTo(0, 0);
   }
   function go(hash) { if (location.hash === hash) route(); else location.hash = hash; }
+  // A page can be opened with "search now" (from the home search box).
+  let autoRun = null;
+  const setAutoRun = name => { autoRun = name; };
+  const takeAutoRun = name => { if (autoRun === name) { autoRun = null; return true; } return false; };
 
   Object.assign(D, {
     META, X, S, ICON, $, $$, esc, enc, sar, sarShort, iso, parse, addDays, diffDays, today, fmtDay, fmtDayLong, fmtMonth, monthName, hhmm, dur, airline,
@@ -464,7 +522,7 @@
     waLink, hero, party, partyLabel, partyParams, travelersField, bindTravelers, placeField, bindPlace, codeOf, placeName, cityByIata, countryOfCode,
     cityField, bindCity, climateOf, feel, visaOf, visaCheckLink, dailyCost, infoStrip, seasons, seasonsOn, baggage, applySeasons, applyTheme, levelOf,
     monthCalendar, yearCalendar, legend, bindCalNav, isFav, toggleFav, addWatch, remember, autoCheckWatches, addToTrip, gFlights, gMaps, gHotels, otaLink,
-    VERDICT, sparkline, historyView, groupPrice, perGroup, go, HM, HD,
+    VERDICT, sparkline, historyView, groupPrice, perGroup, go, HM, HD, actionsDrawer, more, setAutoRun, takeAutoRun, placeDrawer, showCard,
     page(name, fn) { PAGES[name] = fn; },
     onLeave(fn) { cleanup.push(fn); },
     start() { boot().catch(e => { $("#view").innerHTML = errorBox(e); }); }

@@ -1,7 +1,7 @@
 /* Duroob — search pages: flights and hotels. */
 (function () {
   "use strict";
-  const { META, X, S, ICON, $, $$, esc, sar, sarShort, addDays, diffDays, today, fmtDay, fmtMonth, hhmm, dur, airline, months12, defaultMonth, km,
+  const { META, X, S, ICON, $, $$, esc, sar, sarShort, addDays, diffDays, today, fmtDay, fmtDayLong, fmtMonth, hhmm, dur, airline, months12, defaultMonth, km,
     api, save, withLoad, toast, errorBox, openDrawer, seg, bindSeg, segVal, setSeg, waLink, hero, party, partyLabel, partyParams, travelersField, bindTravelers,
     placeField, bindPlace, codeOf, placeName, cityByIata, cityField, bindCity, infoStrip, baggage, levelOf, monthCalendar, yearCalendar, bindCalNav,
     isFav, toggleFav, addWatch, remember, addToTrip, gFlights, gMaps, gHotels, otaLink, historyView, groupPrice, perGroup } = window.D;
@@ -26,15 +26,15 @@
           <div class="field" data-show="month"><label for="f-month">${tx("الشهر")}</label><select class="input" id="f-month">${months12().map(m => `<option value="${m}" ${m === F.month ? "selected" : ""}>${esc(fmtMonth(m))}</option>`).join("")}</select></div>
           <div class="field" data-show="month year rt"><label for="f-nights">${tx("مدة الرحلة (ليالي)")}</label><input class="input num" type="number" id="f-nights" min="1" max="60" value="${pf.nights || 7}"></div>
           ${travelersField("f-trav")}
-          <div class="field"><label for="f-cls">${tx("الدرجة")}</label><select class="input" id="f-cls"><option value="1">${tx("سياحية")}</option><option value="2">${tx("سياحية مميزة")}</option><option value="3">${tx("أعمال")}</option><option value="4">${tx("أولى")}</option></select></div>
         </div>
+        ${D.more(`<div class="fields"><div class="field"><label for="f-cls">${tx("الدرجة")}</label><select class="input" id="f-cls"><option value="1">${tx("سياحية")}</option><option value="2">${tx("سياحية مميزة")}</option><option value="3">${tx("أعمال")}</option><option value="4">${tx("أولى")}</option></select></div></div>
         <div class="checks">
           <label class="check"><input type="checkbox" id="f-direct" ${pf.direct ? "checked" : ""}> ${tx("مباشر فقط")}</label>
           <label class="check"><input type="checkbox" id="f-smart" ${F.smart ? "checked" : ""}> ${tx("دوّر لي طرق أوفر (تذكرتين، مطارات قريبة)")}</label>
           <label class="check"><input type="checkbox" id="f-weekend" ${F.weekend ? "checked" : ""}> ${tx("نهاية الأسبوع (خميس – سبت)")}</label>
           <label class="check"><input type="checkbox" id="f-compare" ${F.compare ? "checked" : ""}> ${tx("قارن المطارات")}</label>
           <span class="chip-set" id="f-airports" ${F.compare ? "" : "hidden"}>${["RUH", "JED", "DMM", "MED"].map(c => `<button type="button" class="chip" data-ap="${c}" aria-pressed="${(S.prefs.compareAirports || ["RUH", "JED", "DMM"]).includes(c)}">${placeName(c)}</button>`).join("")}</span>
-        </div>
+        </div>`)}
         <div class="form-actions"><span class="small muted" id="f-hint"></span><button class="btn btn-primary" type="submit">${tx("دوّر على الرحلات")}</button></div>
       </form>
       <div id="f-info"></div><div id="f-cal"></div><div id="f-alt"></div><div id="f-res"></div>`;
@@ -55,6 +55,7 @@
     $("#f-weekend").addEventListener("change", e => { F.weekend = e.target.checked; if (F.weekend) $("#f-nights").value = 2; });
     $("#f-airports").addEventListener("click", e => { const b = e.target.closest("[data-ap]"); if (!b) return; b.setAttribute("aria-pressed", b.getAttribute("aria-pressed") !== "true"); S.prefs.compareAirports = $$("[data-ap][aria-pressed=true]").map(x => x.dataset.ap); save("prefs"); });
     form.addEventListener("submit", e => { e.preventDefault(); runFlights(root); });
+    if (D.takeAutoRun("flights")) { F.tickets = []; F.cal = null; return form.requestSubmit(); }
     if (F.tickets.length || F.cal) { drawInfo(); drawFlightCal(root); drawSmart(); drawFlightResults(); }
     else $("#f-res", root).innerHTML = `<div class="panel empty"><b>${tx("جاهز للبحث")}</b>${tx("اختر من وين ولوين، وحدد التاريخ أو الشهر، واضغط «دوّر».")}</div>`;
   });
@@ -129,7 +130,14 @@
     }
     const cells = {};
     for (const [day, t] of Object.entries(F.cal.days)) if (t) cells[day] = { price: t.price, tag: F.compare && t.from ? t.from : "" };
-    box.innerHTML = monthCalendar(F.cal.month, cells, { sel: F.sel, nav: true, onlyDow: F.weekend ? 4 : null, note });
+    box.innerHTML = monthCalendar(F.cal.month, cells, { sel: F.sel, nav: true, onlyDow: F.weekend ? 4 : null, note }) +
+      `<div class="row" style="margin-top:8px"><button type="button" class="btn btn-ghost btn-sm" id="f-wmonth">${ICON.bell} ${tx("راقب هالشهر كامل")}</button><span class="small muted">${tx("ننبهك إذا نزل أي يوم في الشهر عن السعر اللي تحدده.")}</span></div>`;
+    const wm = $("#f-wmonth", box);
+    wm && wm.addEventListener("click", () => {
+      const prices = Object.values(F.cal.days).filter(Boolean).map(t => t.price), lo = prices.length ? Math.min(...prices) : null;
+      addWatch({ id: `w:m:${q.o}-${q.d}-${F.cal.month}-${q.rt ? q.nights : "ow"}`, kind: "flight-month", label: `${placeName(q.o)} – ${placeName(q.d)} · ${fmtMonth(F.cal.month)}`, last: lo,
+        params: { origin: q.o, destination: q.d, month: F.cal.month, one_way: q.rt ? "0" : "1", nights: q.rt ? String(q.nights) : "" } });
+    });
     $$(".cal-day[data-day]", box).forEach(b => b.addEventListener("click", () => { F.sel = b.dataset.day; runFlights(root, b.dataset.day); }));
     bindCalNav(box, F.cal.month, m => { $("#f-month").value = m; F.mode = "month"; setSeg(root, "mode", "month"); runFlights(root); });
   }
@@ -162,6 +170,7 @@
         <span class="route-line">${tx("٢.")} ${esc(placeName(s.hub))} – ${esc(placeName(q.d))}: ${leg(s.leg2)}</span>
         <span class="price-sub">${sar(perGroup(s.total, p))} ${tx("للمجموعة · انتظار")} ${P(s.gap_hours, "hour")} ${tx("تقريباً")}</span>
         <span class="warn-line">${tx("تذكرتين منفصلتين: لو تأخرت الأولى ما تنتظرك الثانية، وتستلم شنطك وتسجّل من جديد. تأكد إنك ما تحتاج تأشيرة لـ")}${esc(placeName(s.hub))}.</span>
+        ${s.gap_hours >= 8 ? `<span class="route-line">✦ ${tx("عندك")} ${P(Math.round(s.gap_hours), "hour")} ${tx("في")} ${esc(placeName(s.hub))}: ${tx("تقدر تطلع تشوف المدينة إذا التأشيرة تسمح.")}</span>` : ""}
         <div class="row" style="gap:6px">${book(s.leg1, tx("التذكرة ١"))}${book(s.leg2, tx("التذكرة ٢"))}</div></div>`);
     }
     const refTotal = q.rt ? (base ? base.price : null) : (r.mixed ? r.mixed.out.price : base ? base.price : null);
@@ -256,12 +265,8 @@
         ${fee && !t.total_price ? `<div class="true-price" title="${tx("رسوم الشنطة تقديرية وتعدلها من الإعدادات")}">${bag ? tx("يشمل") : tx("مع الشنطة")}: ${sar(gp.withBag)}</div>` : ""}</div>
       <div class="card-actions">
         <a class="btn btn-primary btn-sm" href="${esc(t.link || gFlights(t.origin, t.destination, dep, ret))}" target="_blank" rel="noopener">${tx("احجز")} ${ICON.out}</a>
-        <a class="btn btn-ghost btn-sm" href="${esc(gFlights(t.origin, t.destination, dep, ret))}" target="_blank" rel="noopener">${tx("قوقل فلايتس")} ${ICON.out}</a>
-        <button type="button" class="btn btn-ghost btn-sm" data-fact="trip" data-i="${i}">${ICON.scroll} ${tx("لملف رحلة")}</button>
-        <button type="button" class="btn btn-ghost btn-sm" data-fact="fav" data-i="${i}" aria-pressed="${isFav(flightId(t))}">${ICON.star} ${tx("مفضلة")}</button>
         <button type="button" class="btn btn-ghost btn-sm" data-fact="watch" data-i="${i}">${ICON.bell} ${tx("راقب")}</button>
-        <button type="button" class="btn btn-ghost btn-sm" data-fact="hist" data-i="${i}">${tx("تاريخ السعر")}</button>
-        <a class="btn btn-ghost btn-sm" href="${esc(waLink(flightShare(t, p)))}" target="_blank" rel="noopener">${ICON.share} ${tx("واتساب")}</a>
+        <button type="button" class="btn btn-ghost btn-sm" data-fact="more" data-i="${i}">${tx("المزيد")} ⋯</button>
       </div></article>`;
   }
   function flightShare(t, p) {
@@ -280,11 +285,25 @@
     else if (kind === "hist") {
       const h = await api("history", { kind: "flight", key: `${t.origin}-${t.destination}${ret ? "-RT" : ""}`, day: dep, current: t.price });
       openDrawer(historyView(`${title} · ${fmtDay(dep)}`, h, tx("للبالغ")));
+    } else if (kind === "card") {
+      D.showCard({ title, sub, lines: [`${tx("الذهاب")}: ${fmtDayLong(dep)} ${hhmm(t.departure_at)}`, ret ? `${tx("العودة")}: ${fmtDayLong(ret)}` : tx("ذهاب فقط"), `${t.transfers ? P(t.transfers, "stop") : tx("مباشر")} · ${partyLabel(p)}`], price: sar(groupPrice(t, p, false).total) });
+    } else if (kind === "more") {
+      D.actionsDrawer(title, [
+        { icon: ICON.out, label: tx("قارن في قوقل فلايتس"), href: gFlights(t.origin, t.destination, dep, ret) },
+        { icon: ICON.scroll, label: tx("أضف لملف رحلة"), onClick: () => flightAction("trip", t) },
+        { icon: ICON.star, label: isFav(flightId(t)) ? tx("شيلها من المفضلة") : tx("أضف للمفضلة"), onClick: async () => { await flightAction("fav", t, { setAttribute() {} }); D.closeDrawer(); } },
+        { icon: ICON.bell, label: tx("تاريخ السعر"), onClick: () => flightAction("hist", t) },
+        { icon: ICON.share, label: tx("أرسلها بالواتساب"), href: waLink(flightShare(t, p)) },
+        { icon: ICON.note, label: tx("بطاقة بصورة للمشاركة"), onClick: () => flightAction("card", t) }
+      ]);
     }
   }
 
+  D.setFlightMode = (mode, month) => { F.mode = mode; if (month) F.month = month; F.tickets = []; F.cal = null; };
+
   // ================================================================== HOTELS
   const H = { mode: "dates", hotels: [], sort: "value", filters: {}, view: "list", ctx: null, cal: null, sel: null, map: null };
+  D.setHotelMode = m => { H.mode = m; H.hotels = []; H.cal = null; };
   D.page("hotels", root => {
     D.onLeave(() => { if (H.map) { try { H.map.remove(); } catch (e) { /* gone */ } H.map = null; } });
     const ph = S.prefs.hotels || { city: "g293993" };
@@ -300,9 +319,9 @@
           <div class="field" data-show="month"><label for="h-month">${tx("الشهر")}</label><select class="input" id="h-month">${months12().map(m => `<option value="${m}" ${m === defaultMonth() ? "selected" : ""}>${esc(fmtMonth(m))}</option>`).join("")}</select></div>
           <div class="field" data-show="month year"><label for="h-nights">${tx("كم ليلة")}</label><input class="input num" type="number" id="h-nights" min="1" max="30" value="${ph.nights || 3}"></div>
           ${travelersField("h-trav")}
-          <div class="field"><label for="h-rooms">${tx("الغرف")}</label><select class="input" id="h-rooms"></select></div>
-          <div class="field"><label for="h-lm">${tx("قريب من")}</label><select class="input" id="h-lm"></select></div>
         </div>
+        ${D.more(`<div class="fields"><div class="field"><label for="h-rooms">${tx("الغرف")}</label><select class="input" id="h-rooms"></select></div>
+          <div class="field"><label for="h-lm">${tx("قريب من")}</label><select class="input" id="h-lm"></select></div></div>`)}
         <div class="form-actions"><span class="small muted" id="h-hint"></span><button class="btn btn-primary" type="submit">${tx("دوّر على الفنادق")}</button></div>
       </form>
       <div id="h-info"></div><div id="h-cal"></div><div id="h-res"></div>`;
@@ -315,6 +334,7 @@
     const vis = () => { const m = segVal(form, "hmode"); $$("[data-show]", form).forEach(el => { el.hidden = !el.dataset.show.split(" ").includes(m); }); $("#h-hint").textContent = m === "month" ? tx("تقويم بمتوسط سعر الليلة لأشهر الفنادق في المدينة.") : m === "year" ? tx("متوسط سعر الليلة في كل شهر.") : ""; };
     bindSeg(form, "hmode", v => { H.mode = v; vis(); }); vis();
     form.addEventListener("submit", e => { e.preventDefault(); runHotels(root); });
+    if (D.takeAutoRun("hotels")) { H.hotels = []; H.cal = null; return form.requestSubmit(); }
     if (H.hotels.length || H.cal) { drawHotelInfo(); drawHotelCal(root); drawHotelResults(); }
     else $("#h-res", root).innerHTML = `<div class="panel empty"><b>${tx("جاهز للبحث")}</b>${tx("اختر المدينة والتواريخ وعددكم، واضغط «دوّر».")}</div>`;
   });
@@ -481,7 +501,10 @@
           <button type="button" class="btn btn-ghost btn-sm" id="hd-fav" aria-pressed="${isFav("h:" + h.id + ctx.checkin)}">${ICON.star} ${tx("مفضلة")}</button>
           <button type="button" class="btn btn-ghost btn-sm" id="hd-watch">${ICON.bell} ${tx("راقب السعر")}</button>
           <button type="button" class="btn btn-ghost btn-sm" id="hd-hist">${tx("تاريخ السعر")}</button>
-          <a class="btn btn-ghost btn-sm" href="${esc(waLink(hotelShare(h, ctx, rates)))}" target="_blank" rel="noopener">${ICON.share} ${tx("واتساب")}</a></div>`);
+          <a class="btn btn-ghost btn-sm" href="${esc(waLink(hotelShare(h, ctx, rates)))}" target="_blank" rel="noopener">${ICON.share} ${tx("واتساب")}</a>
+          <button type="button" class="btn btn-ghost btn-sm" id="hd-card">${ICON.note} ${tx("بطاقة بصورة")}</button>
+          <button type="button" class="btn btn-ghost btn-sm" data-place="${esc(ctx.city.id)}" data-date="${esc(ctx.checkin)}">${tx("الصلاة والمساجد القريبة")}</button></div>`);
+      $("#hd-card").addEventListener("click", () => D.showCard({ title: h.name, sub: `${L(ctx.city)} · ${P(ctx.nights, "night")}`, lines: [`${fmtDayLong(ctx.checkin)} – ${fmtDayLong(ctx.checkout)}`, `${tx("أرخص موقع")}: ${rates[0] ? rates[0].site : ""}`, partyLabel(ctx.party)], price: sar((rates[0] ? rates[0].night : h.night) * ctx.nights * ctx.rooms) }));
       const watchBase = { kind: "hotel", label: `${h.name} · ${fmtDay(ctx.checkin)} (${P(ctx.nights, "night")})`, last: h.night, params: { id: h.id, checkin: ctx.checkin, checkout: ctx.checkout, per_room: ctx.perRoom } };
       $("#hd-fav").addEventListener("click", async e => { const btn = e.currentTarget; btn.setAttribute("aria-pressed", await toggleFav({ id: "h:" + h.id + ctx.checkin, kind: "hotel", title: h.name, sub: `${L(ctx.city)} · ${fmtDay(ctx.checkin)} · ${P(ctx.nights, "night")}`, price: h.night, link: gMaps(h.name, ctx.city.en) })); });
       $("#hd-trip").addEventListener("click", () => addToTrip({ type: "hotel", title: h.name, sub: `${L(ctx.city)} · ${fmtDay(ctx.checkin)} – ${fmtDay(ctx.checkout)} · ${P(ctx.rooms, "room")}`, price: (rates[0] ? rates[0].night : h.night) * ctx.nights * ctx.rooms, link: gMaps(h.name, ctx.city.en), date: ctx.checkin, city: ctx.city.id }));

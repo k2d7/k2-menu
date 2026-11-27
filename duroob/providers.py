@@ -479,3 +479,43 @@ def ntfy_send(topic, title, message, click=None, tags=None, server="https://ntfy
             return r.status == 200
     except (urllib.error.URLError, TimeoutError) as e:
         raise SourceError("ما قدرت أرسل التنبيه للجوال. تأكد من الإنترنت.") from e
+
+
+# ---------------------------------------------------------------- OpenStreetMap: mosques and halal food nearby
+def overpass_nearby(lat, lng, radius=1500):
+    radius = max(200, min(5000, radius))
+    q = f"""[out:json][timeout:25];
+(
+  node["amenity"="place_of_worship"]["religion"="muslim"](around:{radius},{lat},{lng});
+  way["amenity"="place_of_worship"]["religion"="muslim"](around:{radius},{lat},{lng});
+  node["diet:halal"~"yes|only"](around:{radius},{lat},{lng});
+  node["cuisine"~"halal"](around:{radius},{lat},{lng});
+);
+out center 80;"""
+    key = f"overpass:{round(lat, 3)}:{round(lng, 3)}:{radius}"
+    with _cache_lock:
+        hit = _cache.get(key)
+    if hit and hit[0] > time.time():
+        data = hit[1]
+    else:
+        req = urllib.request.Request("https://overpass-api.de/api/interpreter",
+                                     data=urllib.parse.urlencode({"data": q}).encode("utf-8"),
+                                     headers={"User-Agent": UA, "Content-Type": "application/x-www-form-urlencoded"}, method="POST")
+        try:
+            with urllib.request.urlopen(req, timeout=45) as r:
+                data = json.loads(r.read().decode("utf-8"))
+        except (urllib.error.URLError, TimeoutError, ValueError) as e:
+            raise SourceError("ما قدرنا نجيب المساجد والمطاعم الحين. جرب بعد شوي.") from e
+        with _cache_lock:
+            _cache[key] = (time.time() + 86400, data)
+    out = []
+    for e in (data or {}).get("elements") or []:
+        tags = e.get("tags") or {}
+        la = e.get("lat") or (e.get("center") or {}).get("lat")
+        lo = e.get("lon") or (e.get("center") or {}).get("lon")
+        if la is None:
+            continue
+        kind = "mosque" if tags.get("amenity") == "place_of_worship" else "halal"
+        out.append({"kind": kind, "name": tags.get("name:ar") or tags.get("name") or tags.get("name:en") or "",
+                    "name_en": tags.get("name:en") or tags.get("name") or "", "lat": la, "lng": lo})
+    return out

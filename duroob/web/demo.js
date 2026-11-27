@@ -314,6 +314,26 @@
         return Object.assign(w, { makkah: best(mk, mkIn, addDays(mkIn, nm), [21.4225, 39.8262]), madinah: nd ? best(md, mdIn, addDays(mdIn, nd), [24.4672, 39.6111]) : null, train: nd ? 160 : 0, in_airport: inAp, out_airport: outAp }); });
       return { windows, nights: { makkah: nm, madinah: nd }, rooms: Number(q.rooms || 1), per_room: 2, demo: true };
     },
+
+    "budget"(q) {
+      const nights = Number(q.nights || 5), per = roomQuery(q), day0 = monthDays(q.month)[Math.min(9, monthDays(q.month).length - 1)] || q.month + "-10";
+      const out = [];
+      for (const c of CITIES) {
+        if (!c.iata || c.iata === q.origin || c.id === "g293993") continue;
+        const t = cheapest(q.origin, c.iata, day0, addDays(day0, nights)); if (!t) continue;
+        const hs = hotelsOf(c.id).slice(0, 6); let best = null;
+        for (const h of hs) { const r = ratesFor(h, day0, addDays(day0, nights), per.per_room)[0]; if (!best || r.night < best.night) best = { id: h.id, name: h.name, rating: h.rating, night: r.night, site: r.site, image: h.image }; }
+        out.push({ city: c.id, flight: t, hotel: best, depart: day0, return: addDays(day0, nights), nights, rooms: per.rooms });
+      }
+      return { options: out.sort((a, b) => a.flight.price - b.flight.price).slice(0, 10), demo: true };
+    },
+    "nearby"(q) {
+      const r = rnd("near" + q.lat + q.lng), lat = Number(q.lat), lng = Number(q.lng), places = [];
+      const mosques = [tx("مسجد النور"), tx("مسجد الرحمة"), tx("الجامع الكبير"), tx("مسجد التقوى")], food = [tx("مطعم الديرة"), tx("مشويات الخليج"), tx("مطعم البيت الشامي"), tx("مندي الأصيل")];
+      mosques.forEach(n => places.push({ kind: "mosque", name: n, name_en: n, lat: lat + (r() - .5) * .02, lng: lng + (r() - .5) * .02 }));
+      food.forEach(n => places.push({ kind: "halal", name: n, name_en: n, lat: lat + (r() - .5) * .02, lng: lng + (r() - .5) * .02 }));
+      return { places, demo: true };
+    },
     "fx"() { return { rates: null, live: false }; },
     "notify/test"() { return { ok: true, demo: true }; },
     "autostart"() { return { autostart: false }; },

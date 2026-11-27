@@ -1,0 +1,18 @@
+# Duroob website on Render's free plan: https://render.com → New → Blueprint → pick this repository.
+services:
+  - type: web
+    name: duroob
+    runtime: python
+    plan: free
+    rootDir: duroob
+    buildCommand: "echo no build needed"
+    startCommand: "python server.py --web"
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.12.7"
+      - key: TP_TOKEN          # Travelpayouts API token (flight prices)
+        sync: false
+      - key: SERP_KEY          # optional: SerpApi key (Google Hotels / Flights)
+        sync: false
+      - key: TP_MARKER         # optional: Travelpayouts partner marker
+        sync: false

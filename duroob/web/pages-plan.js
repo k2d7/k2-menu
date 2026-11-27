@@ -11,7 +11,7 @@
   D.page("trip", root => {
     const pt = S.prefs.trip || { city: "g293974", nights: 5, months: months12().slice(1, 3) };
     const home = S.settings.home || "RUH";
-    root.innerHTML = hero("trip", tx("رحلة كاملة")) + `
+    root.innerHTML = hero("trip", tx("رحلة كاملة"), "", ["#plan", tx("خطّط")]) + `
       <form class="panel framed search-form" id="tform" autocomplete="off">
         <div class="fields">
           ${placeField("t-o", tx("من"), pt.o || { code: home, name: placeName(home) })}
@@ -25,6 +25,7 @@
         <div class="form-actions"><span class="small muted">${tx("نختار أرخص ستة مواعيد طيران، ونلقى لكل واحد أرخص فندق من أشهر فنادق المدينة، ونضيف المصروف اليومي.")}</span><button class="btn btn-primary" type="submit">${tx("احسب أرخص رحلة")}</button></div>
       </form><div id="t-info"></div><div id="t-res"></div>`;
     const form = $("#tform", root);
+    setTimeout(() => { if (D.takeAutoRun("trip")) form.requestSubmit(); }, 0);
     bindPlace(form, "t-o"); bindCity(form, "t-city"); bindTravelers(form, "t-trav");
     $("#t-months").addEventListener("click", e => { const b = e.target.closest("[data-m]"); if (b) b.setAttribute("aria-pressed", b.getAttribute("aria-pressed") !== "true"); });
     form.addEventListener("click", e => {
@@ -75,7 +76,7 @@
   D.page("multi", root => {
     const pm = S.prefs.multi || { cities: [{ code: "IST", name: tx("إسطنبول"), nights: 4 }, { code: "TZX", name: tx("طرابزون"), nights: 3 }], start: addDays(today(), 30) };
     const home = S.settings.home || "RUH";
-    root.innerHTML = hero("multi", tx("متعددة المدن")) + `
+    root.innerHTML = hero("multi", tx("متعددة المدن"), "", ["#plan", tx("خطّط")]) + `
       <form class="panel framed search-form" id="mform" autocomplete="off">
         <div class="fields">${placeField("m-o", tx("تبدأ من"), pm.o || { code: home, name: placeName(home) })}
           <div class="field"><label for="m-start">${tx("تاريخ البداية")}</label><input class="input" type="date" id="m-start" min="${today()}" value="${pm.start >= today() ? pm.start : addDays(today(), 30)}"></div>
@@ -87,6 +88,7 @@
         <div class="form-actions"><span class="small muted">${tx("حتى خمس مدن. الترتيب الأرخص يتحسب لأربع مدن أو أقل.")}</span><button class="btn btn-primary" type="submit">${tx("خطط الرحلة")}</button></div>
       </form><div id="m-res"></div>`;
     const form = $("#mform", root);
+    setTimeout(() => { if (D.takeAutoRun("multi")) form.requestSubmit(); }, 0);
     bindPlace(form, "m-o"); bindTravelers(form, "m-trav");
     let rows = pm.cities.map(c => Object.assign({ id: uid() }, c));
     const drawRows = () => {
@@ -136,7 +138,7 @@
   const W = { res: null, region: "", weather: "", easyVisa: false };
   D.page("where", root => {
     const pw = S.prefs.where || {}, home = S.settings.home || "RUH", hol = S.prefs.whereWindow;
-    root.innerHTML = hero("where", tx("وين أروح؟")) + `
+    root.innerHTML = hero("where", tx("وين أروح؟"), "", ["#plan", tx("خطّط")]) + `
       ${hol ? `<div class="panel panel-pad small">${tx("إجازتك")}: <b>${esc(fmtDayLong(hol.from))} – ${esc(fmtDayLong(hol.to))}</b> (${P(diffDays(hol.from, hol.to) + 1, "day")}${tx("). اخترنا لك شهرها.")}</div>` : ""}
       <form class="panel framed search-form" id="wform" autocomplete="off">
         <div class="fields">${placeField("w-o", tx("من"), pw.o || { code: home, name: placeName(home) })}
@@ -146,6 +148,7 @@
         <div class="form-actions"><span></span><button class="btn btn-primary" type="submit">${tx("وريني الوجهات")}</button></div>
       </form><div id="w-res"></div>`;
     const form = $("#wform", root);
+    setTimeout(() => { if (D.takeAutoRun("where")) form.requestSubmit(); }, 0);
     bindPlace(form, "w-o");
     form.addEventListener("submit", async e => {
       e.preventDefault();
@@ -203,11 +206,12 @@
     const wd = new Date(day + "T12:00:00").getDay(); if (wd === 4 || wd === 5) level = Math.max(level, 1);
     return { level, why };
   }
+  D.setUmrahMonth = m => { U.month = m; };
   D.page("umrah", root => {
     const pu = S.prefs.umrah || { makkah: 4, madinah: 3, first: "makkah" };
     const home = S.settings.home || "RUH";
     U.month = U.month || pu.month || defaultMonth();
-    root.innerHTML = hero("umrah", tx("العمرة")) + `
+    root.innerHTML = hero("umrah", tx("العمرة"), "", ["#plan", tx("خطّط")]) + `
       <form class="panel framed search-form" id="uform" autocomplete="off">
         <div class="fields">${placeField("u-o", tx("من"), pu.o || { code: home, name: placeName(home) })}
           <div class="field"><label for="u-month">${tx("الشهر")}</label><select class="input" id="u-month">${months12().map(m => `<option value="${m}" ${m === U.month ? "selected" : ""}>${esc(fmtMonth(m))}</option>`).join("")}</select></div>
@@ -218,6 +222,7 @@
         <div class="form-actions"><span class="small muted">${tx("نختار أيام أرخص وأخف زحمة، ونقارن الوصول على جدة أو المدينة، ونجيب فنادق قريبة من الحرم والمسجد النبوي.")}</span><button class="btn btn-primary" type="submit">${tx("خطط عمرتي")}</button></div>
       </form><div id="u-cal"></div><div id="u-res"></div>`;
     const form = $("#uform", root);
+    setTimeout(() => { if (D.takeAutoRun("umrah")) form.requestSubmit(); }, 0);
     bindPlace(form, "u-o"); bindTravelers(form, "u-trav");
     const drawCal = () => {
       const cells = {}, m = $("#u-month").value;
@@ -273,7 +278,7 @@
   // ================================================================== HOLIDAYS (leave planner)
   D.page("holidays", root => {
     const ph = S.prefs.holidays || { sector: "private", leave: 2 };
-    root.innerHTML = hero("holidays", tx("الإجازات")) + `
+    root.innerHTML = hero("holidays", tx("الإجازات"), "", ["#plan", tx("خطّط")]) + `
       <section class="panel framed search-form">
         <div class="row" style="align-items:center;gap:16px"><div class="field"><span class="lbl">${tx("وين تشتغل؟")}</span>${seg("hsec", [["private", tx("قطاع خاص")], ["government", tx("حكومي أو مدارس")]], ph.sector)}</div>
           <div class="field"><label for="hl-leave">${tx("أقصى أيام إجازة تبي تاخذها")}</label><select class="input" id="hl-leave">${[0, 1, 2, 3, 4, 5].map(n => `<option value="${n}" ${n === ph.leave ? "selected" : ""}>${n === 0 ? tx("بدون إجازة") : P(n, "day")}</option>`).join("")}</select></div></div>

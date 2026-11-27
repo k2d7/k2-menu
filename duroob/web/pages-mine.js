@@ -19,12 +19,20 @@
     const ph = S.prefs.holidays || { sector: "private", leave: 2 };
     const bridge = (D.planBridges((S.holidays && S.holidays[ph.sector]) || META.holidays[ph.sector], ph.leave) || [])[0];
     const watches = (S.watches || []).slice(0, 3);
+    const soon = [];
+    for (const t of S.trips || []) for (const r of t.reminders || []) if (!r.done && r.date <= addDays(today(), 14)) soon.push(Object.assign({ trip: t }, r));
+    soon.sort((a, b) => a.date < b.date ? -1 : 1);
+    const examples = [tx("إسطنبول في يوليو ٥ ليالي أنا وزوجتي وولدين"), tx("عمرة في يناير ٤ ليالي"), tx("عندي ٦٠٠٠ ريال للصيف وين أروح؟"), tx("فنادق دبي الأسبوع الجاي ليلتين")];
     root.innerHTML = `
       <section class="sky-hero" aria-label="${tx("دروب")}">
-        <div class="stars-bg"></div><div class="moon"></div>
+        <div class="moon"></div>
         <div class="greet">${greet}${tx("، ")}${tx("يا مسافر")}</div>
         <h1>${tx("وين وجهتك الجاية؟")}</h1>
-        <p>${esc(META.lore.home[1])}</p>
+        <form class="ask" id="ask" autocomplete="off">
+          <div class="ask-row"><input id="ask-in" placeholder="${tx("اكتب بكلامك، مثلاً: إسطنبول في الصيف ٥ ليالي")}" aria-label="${tx("ابحث بكلامك")}"><button class="btn btn-primary" type="submit">${tx("دوّر")}</button></div>
+          <div class="ask-read" id="ask-read"></div>
+          <div class="ask-hints">${examples.map(e => `<button type="button" data-ex="${esc(e)}">${esc(e)}</button>`).join("")}</div>
+        </form>
         <svg class="scene" viewBox="0 0 1200 160" preserveAspectRatio="xMinYMax slice" aria-hidden="true">
           <path class="sc-d1" d="M0 96 C180 56 330 64 520 90 S860 124 1200 74 L1200 160 L0 160Z"/>
           <path class="trail" d="M60 104 C240 78 420 84 600 96 S920 110 1140 84" style="animation-duration:3s"/>
@@ -32,39 +40,84 @@
           <path class="sc-d2" d="M0 126 C220 100 400 110 640 124 S1000 142 1200 116 L1200 160 L0 160Z"/>
         </svg>
       </section>
-      <div class="quick">
-        ${[["#flights", ICON.plane, tx("الطيران"), tx("أرخص الأيام والطرق")], ["#hotels", ICON.bed, tx("الفنادق"), tx("قارن مواقع الحجز")], ["#umrah", ICON.kaaba, tx("العمرة"), tx("أيام أخف وفنادق قريبة")],
-          ["#where", ICON.route, tx("وين أروح؟"), tx("حسب ميزانيتك وجوّك")], ["#trip", ICON.wallet, tx("رحلة كاملة"), tx("طيران وفندق ومصروف")], ["#holidays", ICON.moon, tx("الإجازات"), tx("أطول رحلة بأقل إجازة")]]
-          .map(([href, icon, t, sub]) => `<a class="panel" href="${href}">${icon.replace('class="icon"', 'class="icon q-icon"')}<span class="q-title">${t}</span><span class="q-sub">${sub}</span></a>`).join("")}
-      </div>
       <div class="home-grid">
         <div style="display:grid;gap:16px">
-          ${bridge ? `<section class="panel panel-pad framed" style="display:grid;gap:8px"><span class="eyebrow">${tx("أقرب فرصة سفر")}</span>
+          ${soon.length ? `<section class="panel panel-pad"><h2 class="sec">${tx("تذكيرات قريبة")}</h2>${soon.slice(0, 5).map(r => `<div class="rem ${r.date <= today() ? "due" : ""}"><span class="rem-date">${esc(fmtDay(r.date))}</span><span>${esc(r.text)} <span class="small muted">· ${esc(r.trip.name)}</span></span><a class="btn btn-ghost btn-sm" href="#trips" data-open-trip="${r.trip.id}">${tx("افتح")}</a></div>`).join("")}</section>` : ""}
+          ${bridge ? `<section class="panel panel-pad" style="display:grid;gap:8px"><span class="eyebrow">${tx("أقرب فرصة سفر")}</span>
             <h2 class="sec" style="margin:0">${esc(bridge.name)}: ${P(bridge.length, "day")}</h2>
             <p style="margin:0">${esc(fmtDayLong(bridge.from))} – ${esc(fmtDayLong(bridge.to))}${bridge.leave ? ` · ${tx("تاخذ")} ${P(bridge.leave, "day")} ${tx("إجازة")}` : tx(" · بدون إجازة")}</p>
             <div class="row"><button type="button" class="btn btn-primary btn-sm" id="home-where">${tx("وين أروح فيها؟")}</button><a class="btn btn-ghost btn-sm" href="#holidays">${tx("كل الإجازات")}</a></div></section>` : ""}
-          <section class="panel panel-pad" style="display:grid;gap:8px"><div class="file-head"><h2 class="sec" style="margin:0">${tx("عين الدليل")}</h2><a class="btn btn-ghost btn-sm" href="#watch">${tx("كل المتابعات")}</a></div>
-            ${watches.length ? watches.map(w => `<div class="settle-row"><span>${esc(w.label)}</span><b class="num">${sar(w.last)}</b></div>`).join("") : `<p class="muted" style="margin:0">${tx("ما تراقب شي للحين. اضغط «راقب» على أي رحلة أو فندق، ونعلمك إذا نزل سعره.")}</p>`}</section>
         </div>
         <div style="display:grid;gap:16px">
+          <section class="panel panel-pad" style="display:grid;gap:8px"><div class="file-head"><h2 class="sec" style="margin:0">${tx("متابعاتي")}</h2><a class="btn btn-ghost btn-sm" href="#watch">${tx("كل المتابعات")}</a></div>
+            ${watches.length ? watches.map(w => `<div class="settle-row"><span>${esc(w.label)}</span><b class="num">${sar(w.last)}</b></div>`).join("") : `<p class="muted" style="margin:0">${tx("ما تراقب شي للحين. اضغط «راقب» على أي رحلة أو فندق، ونعلمك إذا نزل سعره.")}</p>`}</section>
           <section class="panel lore-card"><span class="eyebrow">${tx("من دروب التاريخ")}</span><blockquote>${esc(lore[1])}</blockquote><cite>${esc(lore[0])}</cite></section>
-          <section class="panel panel-pad" style="display:grid;gap:8px"><h2 class="sec" style="margin:0">${tx("مصادر الأسعار")}</h2>
-            <div class="settle-row"><span><span class="status-dot ${X.mode === "live" ? "on" : ""}"></span> ${tx("الفنادق (Xotelo)")}</span><span class="small muted">${X.mode === "live" ? tx("شغال") : tx("تجريبي")}</span></div>
-            <div class="settle-row"><span><span class="status-dot ${S.settings.has_tp ? "on" : ""}"></span> ${tx("الطيران (Travelpayouts)")}</span><span class="small muted">${S.settings.has_tp ? tx("شغال") : tx("يحتاج مفتاح")}</span></div>
-            <div class="settle-row"><span><span class="status-dot ${S.settings.has_serp ? "on" : ""}"></span> ${tx("قوقل (SerpApi، اختياري)")}</span><span class="small muted">${S.settings.has_serp ? tx("شغال") : tx("غير مفعّل")}</span></div>
-            <div class="settle-row"><span><span class="status-dot ${S.settings.alerts_on ? "on" : ""}"></span> ${tx("تنبيهات الجوال")}</span><span class="small muted">${S.settings.alerts_on ? tx("مفعّلة") : tx("غير مفعّلة")}</span></div>
-            <a class="btn btn-ghost btn-sm" href="#setup" style="justify-self:start">${tx("الإعدادات")}</a></section>
         </div>
       </div>`;
     const hw = $("#home-where"); hw && hw.addEventListener("click", () => { S.prefs.whereWindow = { from: bridge.from, to: bridge.to }; go("#where"); });
+    $$("[data-open-trip]", root).forEach(a => a.addEventListener("click", () => { openId = a.dataset.openTrip; }));
+    const inp = $("#ask-in"), read = $("#ask-read");
+    const describe = q => {
+      const bits = [];
+      bits.push({ flights: tx("طيران"), hotels: tx("فنادق"), trip: tx("رحلة كاملة"), where: tx("وين أروح؟"), umrah: tx("عمرة"), budget: tx("ميزانيتي"), best: tx("أفضل وقت"), multi: tx("متعددة المدن") }[q.intent]);
+      if (q.origin) bits.push(tx("من") + " " + placeName(q.origin.code));
+      for (const d of [q.dest, q.dest2]) if (d) bits.push(d.city ? L(X.cities.find(c => c.id === d.city)) : placeName(d.code));
+      if (q.date) bits.push(fmtDay(q.date)); else if (q.month) bits.push(fmtMonth(q.month));
+      if (q.nights) bits.push(P(q.nights, "night"));
+      if (q.people) bits.push(partyLabel(Object.assign({ childAges: [] }, q.people)));
+      if (q.budget) bits.push(sar(I18N.toSAR(q.budget)));
+      return bits.filter(Boolean).join(" · ");
+    };
+    let timer;
+    inp.addEventListener("input", () => { clearTimeout(timer); timer = setTimeout(() => { const v = inp.value.trim(); read.textContent = v.length > 3 ? tx("فهمت:") + " " + describe(DX.parseQuery(v)) : ""; }, 250); });
+    $$("[data-ex]", root).forEach(b => b.addEventListener("click", () => { inp.value = b.dataset.ex; inp.dispatchEvent(new Event("input")); inp.focus(); }));
+    $("#ask").addEventListener("submit", e => { e.preventDefault(); const v = inp.value.trim(); if (!v) return inp.focus(); runAsk(DX.parseQuery(v)); });
   });
+  function runAsk(q) {
+    const home = S.settings.home || "RUH", o = q.origin ? { code: q.origin.code, name: placeName(q.origin.code) } : { code: home, name: placeName(home) };
+    if (q.group) S.prefs.people = JSON.parse(JSON.stringify(q.group.people));
+    else if (q.people) {
+      const y = new Date().getFullYear(), ps = [];
+      for (let i = 0; i < q.people.adults; i++) ps.push({ by: y - 30 });
+      for (let i = 0; i < q.people.children; i++) ps.push({ by: y - 8 });
+      for (let i = 0; i < q.people.infants; i++) ps.push({ by: y - 1 });
+      S.prefs.people = ps;
+    }
+    const nights = q.nights || 5, month = q.month || D.defaultMonth();
+    const start = q.date || (q.month ? (q.month === today().slice(0, 7) ? addDays(today(), 7) : q.month + "-10") : addDays(today(), 14));
+    const dest = q.dest, city = dest && dest.city ? dest.city : (dest && D.cityByIata(dest.code) || {}).id;
+    switch (q.intent) {
+      case "hotels":
+        if (!city) return toast(tx("اكتب اسم المدينة اللي تبي فنادقها."));
+        S.prefs.hotels = Object.assign({}, S.prefs.hotels, { city, ci: start, co: addDays(start, nights), nights, lm: 0 }); if (D.setHotelMode) D.setHotelMode("dates"); break;
+      case "trip": S.prefs.trip = Object.assign({}, S.prefs.trip, { o, city, nights, months: [month] }); break;
+      case "where": S.prefs.where = Object.assign({}, S.prefs.where, { o, month }); break;
+      case "umrah":
+        S.prefs.umrah = Object.assign({}, S.prefs.umrah, { o, month, makkah: Math.max(1, Math.ceil(nights * 0.6)), madinah: nights >= 3 ? Math.floor(nights * 0.4) : 0, first: "makkah" });
+        if (D.setUmrahMonth) D.setUmrahMonth(month); break;
+      case "budget": S.prefs.budget = Object.assign({}, S.prefs.budget, { amount: Math.round(I18N.toSAR(q.budget)), o, month, nights }); break;
+      case "best":
+        if (!city) return toast(tx("اكتب اسم الوجهة."));
+        S.prefs.best = { city, o }; break;
+      case "multi": S.prefs.multi = { o, cities: [q.dest, q.dest2].filter(Boolean).map(d => ({ code: d.code, name: placeName(d.code), nights: Math.max(2, Math.round(nights / 2)) })), start, back: true, optimize: true }; break;
+      default:
+        if (!dest) return toast(tx("ما عرفت الوجهة. اكتب اسم المدينة."));
+        S.prefs.flights = Object.assign({}, S.prefs.flights, { o, d: { code: dest.code, name: placeName(dest.code) }, dep: start, ret: addDays(start, nights), nights });
+        if (D.setFlightMode) D.setFlightMode(q.date || !q.month ? "dates" : "month", month);
+        q.intent = "flights";
+    }
+    save("prefs");
+    D.setAutoRun(q.intent);
+    go("#" + q.intent);
+  }
 
   // ================================================================== TRIP FILES + EXPENSES
   let openId = null;
+  const subtabs = cur => `<nav class="subtabs" aria-label="${tx("رحلاتي")}"><a href="#trips" aria-current="${cur === "trips" ? "page" : "false"}">${tx("ملفاتي")}</a><a href="#watch" aria-current="${cur === "watch" ? "page" : "false"}">${tx("متابعاتي")}</a></nav>`;
   D.page("trips", root => {
     const t = (S.trips || []).find(x => x.id === openId);
     if (t) return drawTripFile(root, t);
-    root.innerHTML = hero("trips", tx("ملفات الرحلات")) + `
+    root.innerHTML = hero("trips", tx("رحلاتي")) + subtabs("trips") + `
       <section class="panel framed search-form"><div class="row"><div class="field grow"><label for="tf-name">${tx("ملف رحلة جديد")}</label><input class="input" id="tf-name" placeholder="${tx("مثلاً: صيف إسطنبول مع العائلة")}"></div><button type="button" class="btn btn-primary" id="tf-add">${tx("أنشئ الملف")}</button></div>
         <p class="small muted" style="margin:0">${tx("من أي رحلة أو فندق أو خطة، اضغط «لملف رحلة» وينضاف هنا. وفي كل ملف تقدر تقسم المصاريف على المسافرين.")}</p></section>
       <div class="cards">${(S.trips || []).map(t => {
@@ -110,6 +163,7 @@
         <div class="file-items">${t.items.map(i => `<div class="file-item"><span class="k">${ITEM_ICON[i.type] || ICON.note}</span><span style="min-width:0"><b>${esc(i.title)}</b><br><span class="small muted">${esc(i.sub || "")}</span></span>
           <span style="text-align:end">${i.price ? `<b class="num">${sar(i.price)}</b><br>` : ""}${i.link ? `<a class="small" href="${esc(i.link)}" target="_blank" rel="noopener">${tx("افتح")}</a> · ` : ""}<button type="button" class="btn-link small" data-idel="${i.id}" style="background:none;border:0;color:var(--high);cursor:pointer;padding:0">${tx("شيل")}</button></span></div>`).join("") || `<p class="muted" style="margin:0">${tx("فاضي. أضف من صفحات البحث بزر «لملف رحلة».")}</p>`}</div>
         <div class="row"><div class="field grow"><label for="tf-note">${tx("ملاحظة")}</label><input class="input" id="tf-note" placeholder="${tx("مثلاً: نبي فندق فيه مسبح للعيال")}"></div><button type="button" class="btn btn-ghost" id="tf-addnote">${tx("أضف")}</button></div></section>
+      ${tripPlanner(t)}
       <section class="panel panel-pad" style="display:grid;gap:12px"><div class="file-head"><h2 class="sec" style="margin:0">${tx("تقسيم المصاريف")}</h2><span class="muted">${tx("المصروف")} ${sar(spent)}</span></div>
         <div class="field"><label for="tf-members">${tx("المسافرون (افصل بينهم بفاصلة)")}</label><input class="input" id="tf-members" value="${esc(t.members.join(tx("، ")))}"></div>
         <div class="fields"><div class="field"><label for="ex-title">${tx("المصروف")}</label><input class="input" id="ex-title" placeholder="${tx("مثلاً: الفندق")}"></div>
@@ -122,6 +176,7 @@
           <p class="small muted" style="margin:0">${Object.entries(bal).map(([m, v]) => `${esc(m)}: ${v >= 0 ? tx("له") : tx("عليه")} ${sar(Math.abs(v))}`).join(" · ")}</p>` : ""}
       </section>`;
     const persist = async () => { await save("trips"); drawTripFile(root, t); };
+    bindTripPlanner(root, t, persist);
     $("#tf-back").addEventListener("click", () => { openId = null; go("#trips"); });
     $("#tf-del").addEventListener("click", () => openDrawer(`<h2 id="drawer-title">${tx("تحذف «")}${esc(t.name)}${tx("»؟")}</h2><p class="muted" style="margin:0">${tx("بيروح الملف بكل عناصره ومصاريفه.")}</p><div class="row"><button type="button" class="btn btn-primary" id="tf-del-yes">${tx("احذف")}</button><button type="button" class="btn btn-ghost" data-close>${tx("لا، خلّه")}</button></div>`) || $("#tf-del-yes").addEventListener("click", async () => { S.trips = S.trips.filter(x => x.id !== t.id); await save("trips"); closeDrawer(); openId = null; go("#trips"); }));
     $("#tf-share").href = waLink([`${tx("ملف رحلة من دروب")}: ${t.name}`, ...t.items.map(i => `• ${i.title}${i.sub ? " — " + i.sub : ""}${i.price ? " — " + sar(i.price) : ""}`),
@@ -142,11 +197,53 @@
     });
   }
 
+
+  // Reminders + packing list for one trip file.
+  function tripDefaults(t) {
+    const m = t.meta || {};
+    const dated = t.items.filter(i => i.date).sort((a, b) => a.date < b.date ? -1 : 1);
+    const cityRef = (t.items.find(i => i.city) || {}).city;
+    const city = m.city || (cityRef && (X.cities.find(c => c.id === cityRef) || D.cityByIata(cityRef) || {}).id) || "";
+    return { city, dep: m.dep || (dated[0] && dated[0].date) || "", ret: m.ret || "", pass: m.pass || "", umrah: !!m.umrah };
+  }
+  function tripPlanner(t) {
+    const d = tripDefaults(t), today0 = today();
+    return `<section class="panel panel-pad" style="display:grid;gap:12px"><h2 class="sec" style="margin:0">${tx("قبل السفر")}</h2>
+      <div class="fields">${D.cityField("tp-city", tx("الوجهة"), d.city)}
+        <div class="field"><label for="tp-dep">${tx("السفر")}</label><input class="input" type="date" id="tp-dep" value="${esc(d.dep)}"></div>
+        <div class="field"><label for="tp-ret">${tx("الرجعة")}</label><input class="input" type="date" id="tp-ret" value="${esc(d.ret)}"></div>
+        <div class="field"><label for="tp-pass">${tx("انتهاء الجواز (اختياري)")}</label><input class="input" type="date" id="tp-pass" value="${esc(d.pass)}"></div></div>
+      <div class="row" style="align-items:center"><label class="check"><input type="checkbox" id="tp-umrah" ${d.umrah ? "checked" : ""}> ${tx("رحلة عمرة")}</label>
+        <button type="button" class="btn btn-primary btn-sm" id="tp-make">${tx("جهّز التذكيرات وقائمة الشنطة")}</button></div>
+      ${(t.reminders || []).length ? `<div><h3 class="sub" style="margin-bottom:4px">${tx("التذكيرات")}</h3>${t.reminders.map(r => `<div class="rem ${!r.done && r.date <= today0 ? "due" : ""}"><span class="rem-date">${esc(fmtDay(r.date))}</span><label class="check"><input type="checkbox" data-rdone="${r.id}" ${r.done ? "checked" : ""}> <span>${esc(r.text)}</span></label><span></span></div>`).join("")}
+        <p class="small muted" style="margin:6px 0 0">${X.web ? tx("تظهر لك في الصفحة الرئيسية لما يقرب وقتها.") : tx("توصلك على الجوال في وقتها إذا فعّلت تنبيهات الجوال، وتظهر في الصفحة الرئيسية.")}</p></div>` : ""}
+      ${(t.packing || []).length ? `<div><div class="file-head"><h3 class="sub">${tx("قائمة الشنطة")}</h3><span class="small muted">${t.packing.reduce((n, g) => n + g.items.filter(i => i.done).length, 0)} / ${t.packing.reduce((n, g) => n + g.items.length, 0)}</span></div>
+        <div class="pack-groups">${t.packing.map((g, gi) => `<div><div class="lbl">${esc(g.group)}</div><div class="checklist">${g.items.map((it, ii) => `<label class="${it.done ? "done" : ""}"><input type="checkbox" data-pk="${gi}:${ii}" ${it.done ? "checked" : ""}><span>${esc(it.text)}</span></label>`).join("")}</div></div>`).join("")}</div>
+        <div class="row" style="margin-top:8px"><input class="input grow" id="tp-add" placeholder="${tx("أضف غرض للقائمة")}"><button type="button" class="btn btn-ghost btn-sm" id="tp-addbtn">${tx("أضف")}</button></div></div>` : ""}
+    </section>`;
+  }
+  function bindTripPlanner(root, t, persist) {
+    D.bindCity(root, "tp-city");
+    $("#tp-make").addEventListener("click", () => {
+      const cid = $("#tp-city").dataset.city, c = X.cities.find(x => x.id === cid), dep = $("#tp-dep").value, ret = $("#tp-ret").value, pass = $("#tp-pass").value, umrah = $("#tp-umrah").checked;
+      if (!dep) return toast(tx("حدد تاريخ السفر."));
+      t.meta = { city: cid || "", dep, ret, pass, umrah };
+      const v = c ? D.visaOf(c.country) : null;
+      t.reminders = DX.makeReminders({ depart: dep, ret: ret || addDays(dep, 5), passport: pass, visaKind: v ? v.kind : null, umrah });
+      t.packing = DX.packingList({ city: c, month: dep.slice(0, 7), nights: ret ? D.diffDays(dep, ret) : 5, party: party(), umrah, country: c && c.country });
+      persist(); toast(tx("جهزنا التذكيرات وقائمة الشنطة"), "good");
+    });
+    $$("[data-rdone]", root).forEach(cb => cb.addEventListener("change", () => { const r = t.reminders.find(x => x.id === cb.dataset.rdone); if (r) { r.done = cb.checked; save("trips"); } }));
+    $$("[data-pk]", root).forEach(cb => cb.addEventListener("change", () => { const [gi, ii] = cb.dataset.pk.split(":").map(Number); t.packing[gi].items[ii].done = cb.checked; cb.parentElement.classList.toggle("done", cb.checked); save("trips"); }));
+    const ab = $("#tp-addbtn"); ab && ab.addEventListener("click", () => { const v = $("#tp-add").value.trim(); if (!v) return; const g = t.packing[t.packing.length - 1]; g.items.push({ text: v, done: false }); persist(); });
+  }
+
   // ================================================================== WATCHES
   D.page("watch", root => {
-    root.innerHTML = hero("watch", tx("متابعاتي"), `<button type="button" class="btn btn-primary" id="w-check">${tx("افحص الأسعار الحين")}</button>${X.mode === "live" && "Notification" in window && Notification.permission === "default" ? tx('<button type="button" class="btn btn-ghost" id="w-notif">تنبيهات الكمبيوتر</button>') : ""}<a class="btn btn-ghost" href="#setup">${tx("تنبيهات الجوال")}</a>`) + `
+    root.innerHTML = hero("watch", tx("رحلاتي"), `<button type="button" class="btn btn-primary" id="w-check">${tx("افحص الأسعار الحين")}</button>${X.mode === "live" && "Notification" in window && Notification.permission === "default" ? tx('<button type="button" class="btn btn-ghost" id="w-notif">تنبيهات الكمبيوتر</button>') : ""}<a class="btn btn-ghost" href="#setup">${tx("تنبيهات الجوال")}</a>`) + `
+      ${subtabs("watch")}
       <section><h2 class="sec">${tx("الأسعار اللي أراقبها")}</h2><div class="cards" id="w-list"></div></section>
-      <section><h2 class="sec">${tx("المفضلة")}</h2><div class="cards" id="fav-list"></div></section>
+      <section><div class="file-head"><h2 class="sec" style="margin:0">${tx("المفضلة")}</h2>${(S.favorites || []).length > 1 ? `<a class="btn btn-ghost btn-sm" target="_blank" rel="noopener" href="${esc(waLink([tx("ساعدونا نختار:"), ...(S.favorites || []).slice(0, 6).map((f, i) => `${i + 1}) ${f.title} — ${f.sub || ""} — ${sar(f.price)}`), tx("ردّوا برقم الخيار اللي يعجبكم.")].join("\n")))}">${ICON.share} ${tx("خل العائلة تختار")}</a>` : ""}</div><div class="cards" id="fav-list" style="margin-top:10px"></div></section>
       <section><h2 class="sec">${tx("آخر عمليات البحث")}</h2><div class="panel" id="hist-list"></div></section>`;
     const draw = results => {
       const byId = Object.fromEntries((results || []).map(r => [r.id, r]));
@@ -184,29 +281,39 @@
     const topic = st.ntfy_topic || S.prefs.ntfyTopic;
     root.innerHTML = hero("setup", tx("الإعدادات")) + `
       ${X.mode === "demo" ? `<div class="panel panel-pad small">${tx("هذي نسخة التجربة. المفاتيح والتنبيهات تشتغل في نسخة الكمبيوتر، وتنحفظ على جهازك بس.")}</div>` : ""}
-      <section class="panel panel-pad" style="display:grid;gap:12px"><h2 class="sec"><span class="status-dot ${st.has_tp ? "on" : ""}"></span> ${tx("أسعار الطيران · Travelpayouts (مجاني)")}</h2>
-        <ol class="steps small"><li>${tx("افتح")} <a href="https://www.travelpayouts.com/" target="_blank" rel="noopener">travelpayouts.com</a> ${tx("وسجّل حساب مجاني بإيميلك.")}</li><li>${tx("إذا سألك عن مشروعك، جاوب إنه برنامج شخصي للبحث عن أسعار الطيران.")}</li>
-          <li>${tx("من قائمة البرامج (Programs) دوّر على")} <b>Aviasales</b> ${tx("واضغط انضمام (Join).")}</li><li>${tx("روح لصفحة")} <b>API</b> ${tx("في حسابك (غالباً من قائمة Tools)، وانسخ")} <b>API token</b>.</li><li>${tx("الصقه هنا واضغط «احفظ». إذا تغيّرت أسماء القوائم، دوّر في الموقع على «API token».")}</li></ol>
-        <div class="row"><div class="field grow"><label for="s-tp">API token</label><input class="input" id="s-tp" type="password" placeholder="${st.has_tp ? tx("محفوظ ✓ (اكتب مفتاح جديد لو تبي تغيّره)") : tx("الصق المفتاح هنا")}"></div><button type="button" class="btn btn-primary" data-savekey="tp">${tx("احفظ")}</button></div></section>
-      <section class="panel panel-pad" style="display:grid;gap:12px"><h2 class="sec"><span class="status-dot ${st.alerts_on ? "on" : ""}"></span> ${tx("تنبيهات الجوال")}</h2>
+      <section class="panel panel-pad" style="display:grid;gap:12px"><h2 class="sec" style="margin:0">${tx("اللغة والعملة")}</h2>
+        <div class="fields"><div class="field"><label for="s-lang">${tx("اللغة")}</label><select class="input" id="s-lang"><option value="ar" ${I18N.LANG === "ar" ? "selected" : ""}>العربية</option><option value="en" ${I18N.LANG === "en" ? "selected" : ""}>English</option></select></div>
+          <div class="field"><label for="s-cur">${tx("العملة")}</label><select class="input" id="s-cur">${Object.keys(I18N.CURRENCIES).map(c => `<option value="${c}" ${c === I18N.CUR ? "selected" : ""}>${c} · ${esc(I18N.CUR_NAMES[c][I18N.LANG === "en" ? 1 : 0])}</option>`).join("")}</select></div>
+          <div class="field"><label for="s-home">${tx("مدينتك (مطار الإقلاع المعتاد)")}</label><select class="input" id="s-home">${META.homeAirports.map(a => `<option value="${a.code}" ${a.code === (st.home || "RUH") ? "selected" : ""}>${a.name} (${a.code})</option>`).join("")}</select></div>
+          <div class="field"><span class="lbl">${tx("المظهر")}</span>${seg("theme", [["", tx("حسب الجهاز")], ["light", tx("نهار")], ["dark", tx("ليل")]], S.prefs.theme || "")}</div></div>
+        <p class="small muted" style="margin:0">${I18N.FX_LIVE ? tx("أسعار الصرف تتحدث من الإنترنت مرتين باليوم.") : tx("أسعار صرف تقريبية (ما قدرنا نحدّثها الحين).")}</p></section>
+      <section class="panel panel-pad" style="display:grid;gap:10px"><h2 class="sec" style="margin:0">${tx("ثبّت دروب كتطبيق")}</h2>
+        <p class="small muted" style="margin:0">${tx("بدون متجر وبدون رسوم: يصير له أيقونة على شاشتك ويفتح مثل التطبيق.")}</p>
+        <div class="row"><button type="button" class="btn btn-primary btn-sm" id="s-install" ${D.installPrompt ? "" : "hidden"}>${tx("ثبّت الحين")}</button></div>
+        <ul class="steps small"><li>${tx("آيفون: افتح الموقع في سفاري، اضغط زر المشاركة، ثم «إضافة إلى الشاشة الرئيسية».")}</li><li>${tx("أندرويد: من قائمة كروم (⋮) اختر «تثبيت التطبيق».")}</li><li>${tx("الكمبيوتر: في كروم أو إيدج اضغط أيقونة التثبيت في شريط العنوان.")}</li></ul></section>
+      <section class="panel panel-pad" style="display:grid;gap:12px"><h2 class="sec"><span class="status-dot ${(X.web ? S.prefs.alertsOn : st.alerts_on) ? "on" : ""}"></span> ${tx("تنبيهات الجوال")}</h2>
         <p class="small muted" style="margin:0">${tx("إذا نزل سعر شي تراقبه يوصلك إشعار على جوالك عن طريق تطبيق ntfy المجاني، بدون حساب. ولو فعّلت «مع ويندوز» يكمل دروب يراقب حتى لو قفلت النافذة.")}</p>
         <ol class="steps small"><li>${tx("نزّل تطبيق")} <b>ntfy</b> ${tx("على جوالك")}: <a href="https://play.google.com/store/apps/details?id=io.heckel.ntfy" target="_blank" rel="noopener">${tx("أندرويد")}</a> ${tx("أو")} <a href="https://apps.apple.com/app/ntfy/id1625396347" target="_blank" rel="noopener">${tx("آيفون")}</a>.</li>
           <li>${tx("افتحه واضغط")} <b>+</b> ${tx("(Subscribe to topic) واكتب هالاسم بالضبط")}: <code id="s-topic">${esc(topic)}</code> <button type="button" class="btn btn-ghost btn-sm" id="s-copy">${tx("انسخ")}</button></li>
           <li>${tx("اضغط «جرّب» هنا، ولازم يوصلك إشعار.")}</li></ol>
         <p class="small muted" style="margin:0">${tx("الاسم عشوائي وما يعرفه غيرك، بس التنبيهات تمر على خادم ntfy العام، فلا تشارك الاسم.")}</p>
         <div class="row"><button type="button" class="btn btn-ghost" id="s-test">${tx("جرّب التنبيه")}</button>
-          <label class="check"><input type="checkbox" id="s-alerts" ${st.alerts_on ? "checked" : ""}> ${tx("فعّل تنبيهات الجوال")}</label>
-          ${st.can_autostart ? `<label class="check"><input type="checkbox" id="s-auto" ${st.autostart ? "checked" : ""}> ${tx("شغّل المراقبة مع ويندوز")}</label>` : `<span class="small muted">${tx("«المراقبة مع ويندوز» تظهر في نسخة الويندوز.")}</span>`}</div></section>
+          <label class="check"><input type="checkbox" id="s-alerts" ${(X.web ? S.prefs.alertsOn : st.alerts_on) ? "checked" : ""}> ${tx("فعّل تنبيهات الجوال")}</label>
+          ${X.web ? `<span class="small muted">${tx("في الموقع، الفحص يصير وأنت فاتح الموقع. للمراقبة الدائمة استخدم نسخة الكمبيوتر.")}</span>` : st.can_autostart ? `<label class="check"><input type="checkbox" id="s-auto" ${st.autostart ? "checked" : ""}> ${tx("شغّل المراقبة مع ويندوز")}</label>` : `<span class="small muted">${tx("«المراقبة مع ويندوز» تظهر في نسخة الويندوز.")}</span>`}</div></section>
+      ${X.web ? "<div hidden>" : `<details class="panel panel-pad keys"><summary class="sec">${tx("مفاتيح مصادر الأسعار")}</summary><div style="display:grid;gap:14px;margin-top:12px">`}
+      <section class="panel panel-pad" style="display:grid;gap:12px"><h2 class="sec"><span class="status-dot ${st.has_tp ? "on" : ""}"></span> ${tx("أسعار الطيران · Travelpayouts (مجاني)")}</h2>
+        <ol class="steps small"><li>${tx("افتح")} <a href="https://www.travelpayouts.com/" target="_blank" rel="noopener">travelpayouts.com</a> ${tx("وسجّل حساب مجاني بإيميلك.")}</li><li>${tx("إذا سألك عن مشروعك، جاوب إنه برنامج شخصي للبحث عن أسعار الطيران.")}</li>
+          <li>${tx("من قائمة البرامج (Programs) دوّر على")} <b>Aviasales</b> ${tx("واضغط انضمام (Join).")}</li><li>${tx("روح لصفحة")} <b>API</b> ${tx("في حسابك (غالباً من قائمة Tools)، وانسخ")} <b>API token</b>.</li><li>${tx("الصقه هنا واضغط «احفظ». إذا تغيّرت أسماء القوائم، دوّر في الموقع على «API token».")}</li></ol>
+        <div class="row"><div class="field grow"><label for="s-tp">API token</label><input class="input" id="s-tp" type="password" placeholder="${st.has_tp ? tx("محفوظ ✓ (اكتب مفتاح جديد لو تبي تغيّره)") : tx("الصق المفتاح هنا")}"></div><button type="button" class="btn btn-primary" data-savekey="tp">${tx("احفظ")}</button></div></section>
       <section class="panel panel-pad" style="display:grid;gap:12px"><h2 class="sec"><span class="status-dot ${st.has_serp ? "on" : ""}"></span> ${tx("نتائج قوقل · SerpApi (اختياري)")}</h2>
         <p class="small muted" style="margin:0">${tx("يجيب نفس الأسعار اللي تشوفها في قوقل ماب لكل موقع حجز، ويحسب أعمار الأطفال بدقة، ويضيف فلتر النجوم والإلغاء المجاني. الخطة المجانية فيها حوالي 250 بحث بالشهر.")}</p>
         <ol class="steps small"><li>${tx("سجّل مجاناً في")} <a href="https://serpapi.com/users/sign_up" target="_blank" rel="noopener">serpapi.com</a>.</li><li>${tx("من لوحة التحكم (Dashboard) انسخ")} <b>Private API Key</b>.</li><li>${tx("الصقه هنا واحفظ.")}</li></ol>
         <div class="row"><div class="field grow"><label for="s-serp">SerpApi key</label><input class="input" id="s-serp" type="password" placeholder="${st.has_serp ? tx("محفوظ ✓") : tx("اختياري")}"></div><button type="button" class="btn btn-primary" data-savekey="serp">${tx("احفظ")}</button></div>
         <div class="checks"><label class="check"><input type="checkbox" id="s-sh" ${st.use_serp_hotels !== false ? "checked" : ""}> ${tx("استخدمه للفنادق")}</label><label class="check"><input type="checkbox" id="s-sf" ${st.use_serp_flights ? "checked" : ""}> ${tx("استخدمه للطيران بالتاريخ المحدد (أسعار مباشرة)")}</label></div></section>
-      <section class="panel panel-pad" style="display:grid;gap:12px"><h2 class="sec">${tx("عام")}</h2>
-        <div class="fields"><div class="field"><label for="s-home">${tx("مدينتك (مطار الإقلاع المعتاد)")}</label><select class="input" id="s-home">${META.homeAirports.map(a => `<option value="${a.code}" ${a.code === (st.home || "RUH") ? "selected" : ""}>${a.name} (${a.code})</option>`).join("")}</select></div>
-          <div class="field"><span class="lbl">${tx("المظهر")}</span>${seg("theme", [["", tx("حسب الجهاز")], ["light", tx("نهار")], ["dark", tx("ليل")]], S.prefs.theme || "")}</div></div>
-        ${st.data_dir ? `<p class="small muted" style="margin:0">${tx("بياناتك محفوظة على جهازك في")}: <code>${esc(st.data_dir)}</code></p>` : ""}</section>
-      <section class="panel panel-pad" style="display:grid;gap:12px"><h2 class="sec">${tx("المواسم على التقويم")}</h2>
+      ${X.web ? "</div>" : "</div></details>"}
+      <details class="panel panel-pad keys"><summary class="sec">${tx("إعدادات متقدمة")}</summary><div style="display:grid;gap:14px;margin-top:12px">
+      ${st.data_dir && !X.web ? `<p class="small muted" style="margin:0">${tx("بياناتك محفوظة على جهازك في")}: <code>${esc(st.data_dir)}</code></p>` : X.web ? `<p class="small muted" style="margin:0">${tx("بياناتك محفوظة في متصفحك على هالجهاز بس.")}</p>` : ""}
+      <section style="display:grid;gap:12px"><h2 class="sec">${tx("المواسم على التقويم")}</h2>
         <p class="small muted" style="margin:0">${tx("التواريخ الهجرية تقريبية حسب رؤية الهلال، وتواريخ الإجازات تقريبية. عدّلها أو زِد مواسمك. تأثر على التقويم وزحمة العمرة.")}</p>
         <div class="tbl-wrap"><table class="rates"><thead><tr><th>${tx("الموسم")}</th><th>${tx("من")}</th><th>${tx("إلى")}</th><th>${tx("النوع")}</th><th></th></tr></thead><tbody>
           ${seasons().map((s, i) => `<tr><td><input class="input" data-si="${i}" data-sk="name" value="${esc(s.name)}"></td><td><input class="input" type="date" data-si="${i}" data-sk="from" value="${s.from}"></td><td><input class="input" type="date" data-si="${i}" data-sk="to" value="${s.to}"></td>
@@ -217,7 +324,7 @@
         <p class="small muted" style="margin:0">${tx("سعر شنطة وحدة (حوالي ٢٠ كيلو) لكل اتجاه بالريال، لشركات الطيران الاقتصادي. الأرقام تقديرية، عدّلها حسب آخر أسعارهم.")}</p>
         <div class="kv">${Object.entries(bag).map(([c, v]) => `<div class="field"><label for="bg-${c}">${esc(airline(c))} (${c}) · ${I18N.curSym()}</label><input class="input num" type="number" id="bg-${c}" data-bag="${c}" value="${Math.round(I18N.fromSAR(v))}"></div>`).join("")}</div></section>
       <section class="panel panel-pad" style="display:grid;gap:10px"><h2 class="sec">${tx("المجموعات المحفوظة")}</h2>
-        <div class="chip-set">${(S.groups || []).map((g, i) => `<span class="chip">${esc(g.name)} · ${esc(partyLabel(party(g.people)))} <button type="button" class="icon-btn" style="width:24px;height:24px" data-gdel="${i}" aria-label="${tx("حذف")}">✕</button></span>`).join("") || tx('<span class="small muted">تحفظ المجموعات من زر «المسافرون» في أي بحث.</span>')}</div></section>`;
+        <div class="chip-set">${(S.groups || []).map((g, i) => `<span class="chip">${esc(g.name)} · ${esc(partyLabel(party(g.people)))} <button type="button" class="icon-btn" style="width:24px;height:24px" data-gdel="${i}" aria-label="${tx("حذف")}">✕</button></span>`).join("") || tx('<span class="small muted">تحفظ المجموعات من زر «المسافرون» في أي بحث.</span>')}</div></section></div></details>`;
     const again = () => D.go("#setup");
     root.addEventListener("click", async e => {
       const b = e.target.closest("button"); if (!b) return;
@@ -242,11 +349,19 @@
       if (t.dataset.bag) { S.baggage = Object.assign({}, baggage(), { [t.dataset.bag]: Math.round(I18N.toSAR(Number(t.value) || 0)) }); await save("baggage"); }
       if (t.id === "s-home") { S.settings = await api("settings", null, { home: t.value }); toast(tx("تم")); }
       if (t.id === "s-sh" || t.id === "s-sf") S.settings = await api("settings", null, { use_serp_hotels: $("#s-sh").checked, use_serp_flights: $("#s-sf").checked });
-      if (t.id === "s-alerts") { S.settings = await api("settings", null, { alerts_on: t.checked, ntfy_topic: topic }); toast(t.checked ? tx("تنبيهات الجوال مفعّلة") : tx("وقفنا تنبيهات الجوال")); }
+      if (t.id === "s-alerts") {
+        if (X.web) { S.prefs.alertsOn = t.checked; S.prefs.ntfyTopic = topic; save("prefs"); }
+        else S.settings = await api("settings", null, { alerts_on: t.checked, ntfy_topic: topic });
+        toast(t.checked ? tx("تنبيهات الجوال مفعّلة") : tx("وقفنا تنبيهات الجوال"));
+      }
       if (t.id === "s-auto") { try { const r = await api("autostart", null, { on: t.checked }); toast(r.autostart ? tx("دروب بيشتغل مع ويندوز ويراقب الأسعار") : tx("ما عاد يشتغل مع ويندوز")); } catch (err) { toast(err.message); t.checked = !t.checked; } }
     });
     bindSeg(root, "theme", v => { S.prefs.theme = v; applyTheme(v); save("prefs"); });
+    $("#s-lang").addEventListener("change", e => I18N.setLang(e.target.value));
+    $("#s-cur").addEventListener("change", e => { I18N.setCur(e.target.value); const cs = $("#cur-sel"); if (cs) cs.value = e.target.value; again(); });
+    const ib = $("#s-install"); ib && ib.addEventListener("click", async () => { const pr = D.installPrompt; if (!pr) return; pr.prompt(); await pr.userChoice.catch(() => {}); D.installPrompt = null; ib.hidden = true; });
   });
 
+  window.addEventListener("beforeinstallprompt", e => { e.preventDefault(); D.installPrompt = e; const b = document.getElementById("s-install"); if (b) b.hidden = false; });
   D.start();
 })();

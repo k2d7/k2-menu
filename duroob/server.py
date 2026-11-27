@@ -45,6 +45,9 @@ with open(os.path.join(WEB, "data", "cities.json"), encoding="utf-8") as f:
 with open(os.path.join(WEB, "data", "airports.json"), encoding="utf-8") as f:
     AIRPORTS = json.load(f)
 BACKGROUND = "--background" in sys.argv
+# Website mode: the same app served to browsers on the internet (keys come from env vars,
+# each visitor's data stays in their own browser).
+WEBSITE = "--web" in sys.argv or os.environ.get("DUROOB_WEB") == "1"
 
 _lock = threading.Lock()
 _last_ping = time.time()
@@ -54,9 +57,13 @@ _last_ping = time.time()
 def load_config():
     try:
         with open(CONFIG, encoding="utf-8") as f:
-            return json.load(f)
+            cfg = json.load(f)
     except (OSError, ValueError):
-        return {}
+        cfg = {}
+    if WEBSITE:
+        cfg.update({"tp_token": os.environ.get("TP_TOKEN", ""), "serp_key": os.environ.get("SERP_KEY", ""),
+                    "tp_marker": os.environ.get("TP_MARKER", "")})
+    return cfg
 
 
 def save_config(cfg):
@@ -185,7 +192,7 @@ def city(cid):
 # ---------------------------------------------------------------- API handlers
 def api_settings(q, body):
     cfg = load_config()
-    if body is not None:
+    if body is not None and not WEBSITE:
         for k in ("tp_token", "tp_marker", "serp_key"):
             if k in body:
                 cfg[k] = str(body[k] or "").strip()
@@ -200,11 +207,12 @@ def api_settings(q, body):
         "home": cfg.get("home") or "RUH",
         "use_serp_hotels": cfg.get("use_serp_hotels", True),
         "use_serp_flights": cfg.get("use_serp_flights", False),
-        "data_dir": DATA,
+        "data_dir": None if WEBSITE else DATA,
         "alerts_on": bool(cfg.get("alerts_on")),
         "ntfy_topic": cfg.get("ntfy_topic", ""),
         "autostart": autostart_status(),
-        "can_autostart": os.name == "nt" and FROZEN,
+        "can_autostart": os.name == "nt" and FROZEN and not WEBSITE,
+        "web": WEBSITE,
     }
 
 
@@ -829,7 +837,54 @@ def background_loop():
             cfg = load_config()
             cfg["last_bg_check"] = int(time.time())
             save_config(cfg)
+        try:
+            check_reminders()
+        except Exception:
+            pass
         time.sleep(600)
+
+
+def api_budget(q, body):
+    """Whole trips (flight + hotel) to the cheapest destinations; the page adds spending and filters by budget."""
+    cfg = load_config()
+    tok = cfg.get("tp_token")
+    o = q["origin"].upper()
+    month = q["month"]
+    nights = max(1, int(q.get("nights", 5)))
+    adults = int(q.get("adults", 2))
+    kids = ages(q.get("children"))
+    per_room, rooms = room_query(adults, kids, int(q.get("rooms", 1)))
+    by_iata = {}
+    for c in CITIES.values():
+        if c.get("iata") and c["id"] != "g293993" and c["iata"] not in by_iata:
+            by_iata[c["iata"]] = c
+    cands = sorted({c["iata"] for c in CITIES.values() if c.get("iata")})
+    tickets = P.tp_anywhere(tok, o, month, cands, one_way=False)
+    picks = [t for t in tickets if t["destination"] in by_iata][:10]
+
+    def plan(t):
+        c = by_iata[t["destination"]]
+        dep = (t.get("departure_at") or "")[:10] or f"{month}-15"
+        if dep <= dt.date.today().isoformat():
+            dep = add_days(dt.date.today().isoformat(), 7)
+        ret = add_days(dep, nights)
+        best = None
+        for h in P.xo_list(c["id"], limit=6, sort="popularity")[:6]:
+            try:
+                r = P.xo_rates(h["id"], dep, ret, per_room, 1)
+            except P.SourceError:
+                continue
+            if r and (best is None or r[0]["night"] < best["night"]):
+                best = {"id": h["id"], "name": h["name"], "rating": h["rating"], "night": r[0]["night"], "site": r[0]["site"], "image": h.get("image")}
+        t["link"] = _marker(t["link"], cfg)
+        return {"city": c["id"], "flight": t, "hotel": best, "depart": dep, "return": ret, "nights": nights, "rooms": rooms}
+    with ThreadPoolExecutor(5) as ex:
+        res = [x for x in ex.map(plan, picks) if x["hotel"]]
+    return {"options": res}
+
+
+def api_nearby(q, body):
+    return {"places": P.overpass_nearby(float(q["lat"]), float(q["lng"]), int(q.get("radius", 1500)))}
 
 
 def api_history(q, body):
@@ -838,13 +893,25 @@ def api_history(q, body):
 
 def api_watch_check(q, body):
     cfg = load_config()
-    watches = store_get("watches", []) or []
+    if WEBSITE or (body and isinstance(body.get("watches"), list)):
+        watches = (body or {}).get("watches") or []
+        cfg["ntfy_topic"] = (body or {}).get("ntfy_topic") or ""
+        cfg["alerts_on"] = bool(cfg["ntfy_topic"])
+    else:
+        watches = store_get("watches", []) or []
     out = []
     for w in watches:
         try:
             p = w.get("params") or {}
             price = None
-            if w.get("kind") == "flight":
+            if w.get("kind") == "flight-month":
+                days = P.tp_month_calendar(cfg.get("tp_token"), p["origin"], p["destination"], p["month"],
+                                           p.get("one_way", "1") == "1", False, int(p["nights"]) if p.get("nights") else None)
+                best = min(days.items(), key=lambda kv: kv[1]["price"]) if days else None
+                price = best[1]["price"] if best else None
+                w["best_day"] = best[0] if best else None
+                key, day, kind = f"{p['origin']}-{p['destination']}-M", p["month"], "flight-month"
+            elif w.get("kind") == "flight":
                 t = P.tp_search(cfg.get("tp_token"), p["origin"], p["destination"], p["depart"], p.get("return"),
                                 p.get("direct") == "1", limit=30)
                 price = min((x["price"] for x in t), default=None)
@@ -874,8 +941,30 @@ def api_watch_check(q, body):
             out.append(r)
         except (P.SourceError, KeyError, ValueError) as e:
             out.append({"id": w.get("id"), "error": str(e)})
-    store_put("watches", watches)
+    if not WEBSITE and not (body and isinstance(body.get("watches"), list)):
+        store_put("watches", watches)
     return {"results": out, "watches": watches}
+
+
+def check_reminders():
+    """Send trip reminders (passport, visa, check-in...) to the phone on their day."""
+    cfg = load_config()
+    if not (cfg.get("alerts_on") and cfg.get("ntfy_topic")):
+        return
+    trips = store_get("trips", []) or []
+    today = dt.date.today().isoformat()
+    changed = False
+    for t in trips:
+        for r in t.get("reminders") or []:
+            if r.get("date") and r["date"] <= today and not r.get("sent") and not r.get("done"):
+                try:
+                    P.ntfy_send(cfg["ntfy_topic"], "دروب · " + str(t.get("name", ""))[:60], r.get("text", ""), tags=["bell"])
+                    r["sent"] = True
+                    changed = True
+                except P.SourceError:
+                    return
+    if changed:
+        store_put("trips", trips)
 
 
 ROUTES = {
@@ -897,7 +986,11 @@ ROUTES = {
     "umrah": api_umrah,
     "notify/test": api_notify_test,
     "autostart": api_autostart,
+    "budget": api_budget,
+    "nearby": api_nearby,
 }
+WEB_BLOCKED = {"autostart"}
+_hits: dict[str, list[float]] = {}
 
 
 # ---------------------------------------------------------------- HTTP
@@ -918,8 +1011,20 @@ class Handler(BaseHTTPRequestHandler):
         self.wfile.write(data)
 
     def _host_ok(self):
+        if WEBSITE:
+            return True
         host = (self.headers.get("Host") or "").split(":")[0]
         return host in ("127.0.0.1", "localhost")
+
+    def _rate_ok(self):
+        if not WEBSITE:
+            return True
+        ip = (self.headers.get("X-Forwarded-For") or self.client_address[0]).split(",")[0].strip()
+        now = time.time()
+        hits = [t for t in _hits.get(ip, []) if now - t < 60]
+        hits.append(now)
+        _hits[ip] = hits
+        return len(hits) <= 90
 
     def do_GET(self):
         self.handle_any(None)
@@ -953,7 +1058,11 @@ class Handler(BaseHTTPRequestHandler):
             name = path[5:].strip("/")
             q = {k: v[-1] for k, v in urllib.parse.parse_qs(url.query).items()}
             if name == "ping":
-                return self._send(200, {"app": "duroob"})
+                return self._send(200, {"app": "duroob", "web": WEBSITE})
+            if not self._rate_ok():
+                return self._send(429, {"error": "طلبات كثيرة، انتظر دقيقة وجرب.", "code": "rate"})
+            if WEBSITE and (name.startswith("store/") or name in WEB_BLOCKED):
+                return self._send(404, {"error": "not available on the website"})
             if name.startswith("store/"):
                 sname = name[6:]
                 if sname not in STORE_NAMES:
@@ -1016,7 +1125,17 @@ def watchdog():
             os._exit(0)
 
 
+def main_web():
+    port = int(os.environ.get("PORT", 10000))
+    srv = ThreadingHTTPServer(("0.0.0.0", port), Handler)
+    srv.daemon_threads = True
+    print(f"Duroob website on port {port}")
+    srv.serve_forever()
+
+
 def main():
+    if WEBSITE:
+        return main_web()
     first = int(os.environ.get("DUROOB_PORT", PORT))
     srv = None
     for port in range(first, first + 10):
