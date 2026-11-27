@@ -47,7 +47,8 @@ with open(os.path.join(WEB, "data", "airports.json"), encoding="utf-8") as f:
 BACKGROUND = "--background" in sys.argv
 # Website mode: the same app served to browsers on the internet (keys come from env vars,
 # each visitor's data stays in their own browser).
-WEBSITE = "--web" in sys.argv or os.environ.get("DUROOB_WEB") == "1"
+# Website mode: asked for with --web, or detected on Render (it sets RENDER=true), so a missing flag can't hang a deploy.
+WEBSITE = "--web" in sys.argv or os.environ.get("DUROOB_WEB") == "1" or os.environ.get("RENDER") == "true"
 
 _lock = threading.Lock()
 _last_ping = time.time()
@@ -1190,7 +1191,7 @@ def main_web():
     port = int(os.environ.get("PORT", 10000))
     srv = ThreadingHTTPServer(("0.0.0.0", port), Handler)
     srv.daemon_threads = True
-    print(f"Duroob website on port {port}")
+    print(f"Duroob website on port {port}", flush=True)
     srv.serve_forever()
 
 
