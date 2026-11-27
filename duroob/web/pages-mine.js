@@ -305,11 +305,13 @@
       <section class="panel panel-pad" style="display:grid;gap:12px"><h2 class="sec"><span class="status-dot ${st.has_tp ? "on" : ""}"></span> ${tx("أسعار الطيران · Travelpayouts (مجاني)")}</h2>
         <ol class="steps small"><li>${tx("افتح")} <a href="https://www.travelpayouts.com/" target="_blank" rel="noopener">travelpayouts.com</a> ${tx("وسجّل حساب مجاني بإيميلك.")}</li><li>${tx("إذا سألك عن مشروعك، جاوب إنه برنامج شخصي للبحث عن أسعار الطيران.")}</li>
           <li>${tx("من قائمة البرامج (Programs) دوّر على")} <b>Aviasales</b> ${tx("واضغط انضمام (Join).")}</li><li>${tx("روح لصفحة")} <b>API</b> ${tx("في حسابك (غالباً من قائمة Tools)، وانسخ")} <b>API token</b>.</li><li>${tx("الصقه هنا واضغط «احفظ». إذا تغيّرت أسماء القوائم، دوّر في الموقع على «API token».")}</li></ol>
-        <div class="row"><div class="field grow"><label for="s-tp">API token</label><input class="input" id="s-tp" type="password" placeholder="${st.has_tp ? tx("محفوظ ✓ (اكتب مفتاح جديد لو تبي تغيّره)") : tx("الصق المفتاح هنا")}"></div><button type="button" class="btn btn-primary" data-savekey="tp">${tx("احفظ")}</button></div></section>
+        <div class="row"><div class="field grow"><label for="s-tp">API token</label><input class="input" id="s-tp" type="password" placeholder="${st.has_tp ? tx("محفوظ ✓ (اكتب مفتاح جديد لو تبي تغيّره)") : tx("الصق المفتاح هنا")}"></div><button type="button" class="btn btn-primary" data-savekey="tp">${tx("احفظ")}</button></div>
+        ${X.web && D.webKeys().tp ? `<button type="button" class="btn btn-ghost btn-sm" data-copykey="tp" style="justify-self:start">${tx("انسخ المفتاح المحفوظ")}</button>` : ""}</section>
       <section class="panel panel-pad" style="display:grid;gap:12px"><h2 class="sec"><span class="status-dot ${st.has_serp ? "on" : ""}"></span> ${tx("نتائج قوقل · SerpApi (اختياري)")}</h2>
         <p class="small muted" style="margin:0">${tx("يجيب نفس الأسعار اللي تشوفها في قوقل ماب لكل موقع حجز، ويحسب أعمار الأطفال بدقة، ويضيف فلتر النجوم والإلغاء المجاني. الخطة المجانية فيها حوالي 250 بحث بالشهر.")}</p>
         <ol class="steps small"><li>${tx("سجّل مجاناً في")} <a href="https://serpapi.com/users/sign_up" target="_blank" rel="noopener">serpapi.com</a>.</li><li>${tx("من لوحة التحكم (Dashboard) انسخ")} <b>Private API Key</b>.</li><li>${tx("الصقه هنا واحفظ.")}</li></ol>
         <div class="row"><div class="field grow"><label for="s-serp">SerpApi key</label><input class="input" id="s-serp" type="password" placeholder="${st.has_serp ? tx("محفوظ ✓") : tx("اختياري")}"></div><button type="button" class="btn btn-primary" data-savekey="serp">${tx("احفظ")}</button></div>
+        ${X.web && D.webKeys().serp ? `<button type="button" class="btn btn-ghost btn-sm" data-copykey="serp" style="justify-self:start">${tx("انسخ المفتاح المحفوظ")}</button>` : ""}
         <div class="checks" ${X.web ? "hidden" : ""}><label class="check"><input type="checkbox" id="s-sh" ${st.use_serp_hotels !== false ? "checked" : ""}> ${tx("استخدمه للفنادق")}</label><label class="check"><input type="checkbox" id="s-sf" ${st.use_serp_flights ? "checked" : ""}> ${tx("استخدمه للطيران بالتاريخ المحدد (أسعار مباشرة)")}</label></div></section>
       </div></details>
       <details class="panel panel-pad keys"><summary class="sec">${tx("إعدادات متقدمة")}</summary><div style="display:grid;gap:14px;margin-top:12px">
@@ -329,6 +331,11 @@
     const again = () => D.go("#setup");
     root.addEventListener("click", async e => {
       const b = e.target.closest("button"); if (!b) return;
+      if (b.dataset.copykey) {
+        const v = D.webKeys()[b.dataset.copykey] || "";
+        try { await navigator.clipboard.writeText(v); toast(tx("انسخ ✓ الصقه في Render"), "good"); }
+        catch (err) { const i = b.previousElementSibling && b.previousElementSibling.querySelector("input"); if (i) { i.type = "text"; i.value = v; i.select(); } toast(tx("حددته لك، انسخه")); }
+      }
       if (b.dataset.savekey) {
         const isTp = b.dataset.savekey === "tp", val = $(isTp ? "#s-tp" : "#s-serp").value.trim();
         if (!val) return toast(tx("الصق المفتاح أول."));

@@ -1054,5 +1054,7 @@ window.DUROOB_EN = {
 "أكثر من شركة": "Several airlines",
 "الطيران من قوقل فلايتس، والفندق أرخص سعر من أشهر عشرة فنادق في": "Flights from Google Flights; the hotel is the cheapest of the ten most popular hotels in",
 "أسعار من قوقل فلايتس ومن المصدر المجاني، وتقديرية. ": "Prices from Google Flights and the free source; estimates. ",
-"الطيران من قوقل فلايتس، والفندق أرخص سعر من أشهر ستة فنادق، والمصروف تقديري. أسعار الأطفال تقديرية.": "Flights from Google Flights; the hotel is the cheapest of six popular hotels; spending is an estimate. Children's fares are estimates."
+"الطيران من قوقل فلايتس، والفندق أرخص سعر من أشهر ستة فنادق، والمصروف تقديري. أسعار الأطفال تقديرية.": "Flights from Google Flights; the hotel is the cheapest of six popular hotels; spending is an estimate. Children's fares are estimates.",
+"انسخ المفتاح المحفوظ": "Copy the saved key",
+"انسخ ✓ الصقه في Render": "Copied ✓ Paste it in Render"
 };
