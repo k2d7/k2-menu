@@ -62,8 +62,8 @@ def load_config():
     except (OSError, ValueError):
         cfg = {}
     if WEBSITE:
-        cfg.update({"tp_token": os.environ.get("TP_TOKEN", ""), "serp_key": os.environ.get("SERP_KEY", ""),
-                    "tp_marker": os.environ.get("TP_MARKER", "")})
+        env = lambda k: os.environ.get(k, "").strip()  # pasted keys often carry a stray space or newline
+        cfg.update({"tp_token": env("TP_TOKEN"), "serp_key": env("SERP_KEY"), "tp_marker": env("TP_MARKER")})
     return cfg
 
 
