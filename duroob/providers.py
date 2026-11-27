@@ -428,7 +428,7 @@ def gflights_link(origin, destination, depart, ret=None):
 def serp_calendar(key, origin, destination, start, end, one_way=True, nights=None, direct=False):
     """Google Flights calendar: cheapest price for one adult on each day from start to end (one search, up to ~120 days)."""
     params = {
-        "engine": "google_flights_calendar", "departure_id": origin, "arrival_id": destination,
+        "engine": "google_flights_calendar", "departure_id": g_code(origin), "arrival_id": g_code(destination),
         "date_range_start": start, "date_range_end": end, "type": 2 if one_way else 1,
         "currency": "SAR", "gl": "sa", "hl": "en",
     }
@@ -460,6 +460,62 @@ def serp_calendar(key, origin, destination, start, end, one_way=True, nights=Non
     return days
 
 
+# Airports of Duroob's cities whose city code differs (from Travelpayouts' airports data).
+# Google returns airports (LHR); Duroob's cities use city codes (LON).
+AIRPORT_CITY = {
+    "ADJ": "AMM", "BGY": "MIL", "BUR": "LAX", "BVA": "PAR", "CCE": "CAI", "CDG": "PAR", "CGK": "JKT", "CIA": "ROM",
+    "DME": "MOW", "DMK": "BKK", "DWC": "DXB", "DXN": "DEL", "EWR": "NYC", "FCO": "ROM", "GMP": "SEL", "HLP": "JKT",
+    "HND": "TYO", "ICN": "SEL", "ITM": "OSA", "JFK": "NYC", "KIX": "OSA", "LCY": "LON", "LGA": "NYC", "LGW": "LON",
+    "LHR": "LON", "LIN": "MIL", "LTN": "LON", "MXP": "MIL", "NAY": "BJS", "NMI": "BOM", "NRT": "TYO", "ORY": "PAR",
+    "PEK": "BJS", "PKX": "BJS", "QAH": "DEL", "SAW": "IST", "SEN": "LON", "SNA": "LAX", "SPX": "CAI", "STN": "LON",
+    "SVO": "MOW", "SZB": "KUL", "TSF": "VCE", "UKB": "OSA", "VKO": "MOW", "VNY": "LAX", "WIL": "NBO", "WMI": "WAW",
+    "WSI": "SYD", "XSP": "SIN", "ZIA": "MOW",
+}
+
+
+# City codes that aren't airports: Google needs an airport, so use the main one.
+CITY_MAIN = {"LON": "LHR", "PAR": "CDG", "ROM": "FCO", "MIL": "MXP", "MOW": "SVO", "NYC": "JFK",
+             "TYO": "HND", "SEL": "ICN", "OSA": "KIX", "BJS": "PEK", "JKT": "CGK"}
+
+
+def g_code(code):
+    return CITY_MAIN.get((code or "").upper(), code)
+
+
+def serp_explore(key, origin, month=None, one_way=False):
+    """Google Travel Explore: cheapest destinations from `origin` in one search (only the next 6 months)."""
+    params = {"engine": "google_travel_explore", "departure_id": g_code(origin), "type": 2 if one_way else 1,
+              "currency": "SAR", "gl": "sa", "hl": "en"}
+    if month:
+        params["month"] = int(month[5:7])
+    try:
+        data = _serp(key, params, ttl=12 * 3600)
+    except SourceError as e:
+        if "hasn't returned any results" in str(e):
+            return []
+        raise
+    found = {}
+    for x in data.get("destinations") or []:
+        code, price = (x.get("destination_airport") or {}).get("code"), _num(x.get("flight_price"))
+        if not code or not price or code == origin:
+            continue
+        city = AIRPORT_CITY.get(code, code)
+        dep, ret = x.get("start_date"), None if one_way else x.get("end_date")
+        t = {
+            "source": "Google Flights", "google": True, "cached": False,
+            "origin": origin, "destination": city, "origin_airport": origin, "destination_airport": code,
+            "name": x.get("name"), "country": x.get("country"), "image": x.get("thumbnail"),
+            "price": round(price), "hotel_night": round(_num(x.get("hotel_price")) or 0) or None,
+            "departure_at": dep, "return_at": ret,
+            "airline": None if x.get("airline_code") in (None, "multi") else x.get("airline_code"), "airline_name": x.get("airline"),
+            "transfers": x.get("number_of_stops"), "duration": x.get("flight_duration"),
+            "link": gflights_link(origin, code, dep, ret) if dep else (x.get("link") or ""),
+        }
+        if city not in found or t["price"] < found[city]["price"]:
+            found[city] = t
+    return sorted(found.values(), key=lambda t: t["price"])
+
+
 def _al_code(leg):
     fn = (leg.get("flight_number") or "").split(" ")
     return fn[0] if fn and 2 <= len(fn[0]) <= 3 else leg.get("airline")
@@ -467,7 +523,7 @@ def _al_code(leg):
 
 def serp_flights(key, origin, destination, depart, ret, adults, children, infants, cls=1, stops=0):
     params = {
-        "engine": "google_flights", "departure_id": origin, "arrival_id": destination,
+        "engine": "google_flights", "departure_id": g_code(origin), "arrival_id": g_code(destination),
         "outbound_date": depart, "type": 1 if ret else 2, "adults": adults,
         "children": children or None, "infants_on_lap": infants or None,
         "travel_class": cls, "stops": stops, "currency": "SAR", "hl": "en", "gl": "sa",

@@ -368,14 +368,26 @@ def api_flights_calendar(q, body):
     return {"days": days, "google": google and bool(days)}
 
 
-def api_flights_anywhere(q, body):
-    cfg = load_config()
-    o = q["origin"].upper()
+def _anywhere(cfg, o, month, one_way):
+    """Cheapest destinations: the free cache first, then Google Travel Explore (one search) when it's empty."""
     cands = sorted({c["iata"] for c in CITIES.values() if c.get("iata")})
-    tickets = P.tp_anywhere(cfg.get("tp_token"), o, q["month"], cands, q.get("one_way", "1") == "1")
+    tickets = P.tp_anywhere(cfg.get("tp_token"), o, month, cands, one_way)
+    google = False
+    in_range = month <= months_ahead(6)[-1]
+    if not tickets and cfg.get("serp_key") and in_range:
+        try:
+            tickets, google = P.serp_explore(cfg["serp_key"], o, month, one_way), True
+        except P.SourceError:
+            tickets = []
     for t in tickets:
         t["link"] = _marker(t["link"], cfg)
-    return {"tickets": tickets}
+    return tickets, google and bool(tickets)
+
+
+def api_flights_anywhere(q, body):
+    cfg = load_config()
+    tickets, google = _anywhere(cfg, q["origin"].upper(), q["month"], q.get("one_way", "1") == "1")
+    return {"tickets": tickets, "google": google}
 
 
 def api_hotels_search(q, body):
@@ -943,7 +955,6 @@ def background_loop():
 def api_budget(q, body):
     """Whole trips (flight + hotel) to the cheapest destinations; the page adds spending and filters by budget."""
     cfg = load_config()
-    tok = cfg.get("tp_token")
     o = q["origin"].upper()
     month = q["month"]
     nights = max(1, int(q.get("nights", 5)))
@@ -954,8 +965,7 @@ def api_budget(q, body):
     for c in CITIES.values():
         if c.get("iata") and c["id"] != "g293993" and c["iata"] not in by_iata:
             by_iata[c["iata"]] = c
-    cands = sorted({c["iata"] for c in CITIES.values() if c.get("iata")})
-    tickets = P.tp_anywhere(tok, o, month, cands, one_way=False)
+    tickets, _ = _anywhere(cfg, o, month, False)
     picks = [t for t in tickets if t["destination"] in by_iata][:10]
 
     def plan(t):

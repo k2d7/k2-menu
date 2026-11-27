@@ -157,7 +157,7 @@
       S.prefs.where = { o: { code: o, name: placeName(o) }, month, budget, rt }; save("prefs");
       try {
         const res = await withLoad(tx("القافلة تستكشف الوجهات على طريق البخور…"), () => api("flights/anywhere", { origin: o, month, one_way: rt ? 0 : 1 }));
-        W.res = { tickets: res.tickets, budget, month, o, demo: res.demo };
+        W.res = { tickets: res.tickets, budget, month, o, demo: res.demo, google: res.google };
         remember("where", `${tx("وين أروح من")} ${placeName(o)} · ${fmtMonth(month)}`, { o, month });
         drawWhere();
       } catch (err) { $("#w-res").innerHTML = errorBox(err); }
@@ -165,7 +165,8 @@
     if (W.res) drawWhere();
   });
   function drawWhere() {
-    const { tickets, budget, demo, month } = W.res, box = $("#w-res");
+    const { tickets, budget, demo, month, google } = W.res, box = $("#w-res");
+    const destName = t => { const n = placeName(t.destination); return n && n !== t.destination ? n : (t.name || t.destination); };
     const enrich = t => { const c = cityByIata(t.destination), cc = countryOfCode(t.destination); return { t, c, cc, cl: c ? climateOf(c.id, month) : null, v: visaOf(cc), dc: dailyCost(cc) }; };
     let list = tickets.filter(t => !budget || t.price <= budget).map(enrich);
     if (W.region) list = list.filter(x => (META.regions[W.region] || []).includes(x.cc));
@@ -178,13 +179,15 @@
           <label class="check"><input type="checkbox" id="w-visa" ${W.easyVisa ? "checked" : ""}> ${tx("دخول سهل (بدون تأشيرة أو عند الوصول)")}</label></div>
         <span class="count">${P(list.length, "dest")}${budget ? tx(" ضمن ") + sar(budget) : ""} · ${tx("الجو في")} ${esc(monthName(month))}</span></section>
       <div class="cards">${list.slice(0, 60).map(({ t, c, cl, v, dc }) => `<article class="panel dcard">
-        <h3>${esc(placeName(t.destination))}</h3>
-        <div class="meta"><span>${esc(fmtDay((t.departure_at || "").slice(0, 10)))}</span><span>${esc(airline(t.airline))}</span><span>${t.transfers ? P(t.transfers, "stop") : tx("مباشر")}</span></div>
+        ${t.image ? `<div class="himg" style="aspect-ratio:16/9;margin:-4px 0 4px"><img src="${esc(t.image)}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.parentNode.remove()"></div>` : ""}
+        <h3>${esc(destName(t))}</h3>
+        <div class="meta"><span>${esc(fmtDay((t.departure_at || "").slice(0, 10)))}</span><span>${esc(t.google && !t.airline ? tx("أكثر من شركة") : airline(t.airline))}</span><span>${t.transfers ? P(t.transfers, "stop") : tx("مباشر")}</span></div>
         <div class="price-big">${sar(t.price)}</div><span class="small muted">${tx("للشخص")}${t.return_at ? tx(" · ذهاب وعودة") : ""}</span>
         <div class="meta">${cl ? `<span>${ICON.sun.replace('class="icon"', 'class="icon" style="width:14px;height:14px;vertical-align:-2px"')} ${esc(feel(cl))} ${cl.lo}°–${cl.hi}°</span>` : ""}${v ? `<span class="${v.cls}">${esc(v.label)}${v.sure ? "" : tx(" (تأكد)")}</span>` : ""}${dc ? `<span>${tx("مصروف")} ${sar(dc)}${tx("/يوم")}</span>` : ""}</div>
         <div class="row" style="gap:6px"><a class="btn btn-primary btn-sm" href="${esc(t.link || gFlights(t.origin, t.destination, (t.departure_at || "").slice(0, 10)))}" target="_blank" rel="noopener">${tx("الرحلة")} ${ICON.out}</a>
-        ${c ? `<button type="button" class="btn btn-ghost btn-sm" data-goh="${esc(c.id)}" data-day="${esc((t.departure_at || "").slice(0, 10))}">${tx("فنادقها")}</button><button type="button" class="btn btn-ghost btn-sm" data-gotrip="${esc(c.id)}">${tx("رحلة كاملة")}</button>` : ""}</div></article>`).join("") || `<div class="panel empty"><b>${tx("ما فيه وجهات بهالشروط")}</b>${tx("خفف الفلاتر أو زِد الميزانية.")}</div>`}</div>
-      <p class="small muted">${demo ? tx("أسعار تجريبية. ") : tx("أسعار محفوظة من عمليات بحث آخر أيام. ")}${tx("الجو متوسط ثلاث سنوات، والتأشيرة إرشادية (تحديث")} ${esc(META.visa.updated)}).</p>`;
+        ${c ? `<button type="button" class="btn btn-ghost btn-sm" data-goh="${esc(c.id)}" data-day="${esc((t.departure_at || "").slice(0, 10))}">${tx("فنادقها")}</button><button type="button" class="btn btn-ghost btn-sm" data-gotrip="${esc(c.id)}">${tx("رحلة كاملة")}</button>` : ""}</div></article>`).join("") || (tickets.length ? `<div class="panel empty"><b>${tx("ما فيه وجهات بهالشروط")}</b>${tx("خفف الفلاتر أو زِد الميزانية.")}</div>`
+        : `<div class="panel empty"><b>${tx("ما لقينا أسعار لهالشهر")}</b>${S.settings.has_serp ? tx("قوقل يعطي أسعار الوجهات للست شهور الجاية بس. جرب شهر أقرب.") : tx("المصدر المجاني ما عنده أسعار من مدينتك. حط مفتاح SerpApi من الإعدادات وتطلع لك أسعار قوقل.")}</div>`)}</div>
+      <p class="small muted">${demo ? tx("أسعار تجريبية. ") : google ? tx("الأسعار من قوقل فلايتس. ") : tx("أسعار محفوظة من عمليات بحث آخر أيام. ")}${tx("الجو متوسط ثلاث سنوات، والتأشيرة إرشادية (تحديث")} ${esc(META.visa.updated)}).</p>`;
     $$("[data-region]", box).forEach(b => b.addEventListener("click", () => { W.region = b.dataset.region; drawWhere(); }));
     $$("[data-weather]", box).forEach(b => b.addEventListener("click", () => { W.weather = b.dataset.weather; drawWhere(); }));
     $("#w-visa").addEventListener("change", e => { W.easyVisa = e.target.checked; drawWhere(); });

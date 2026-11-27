@@ -1047,5 +1047,9 @@ window.DUROOB_EN = {
 "في الموقع، المفاتيح تنحفظ في متصفحك على هالجهاز بس، وتنرسل مع كل بحث، والسيرفر ما يحفظها. إذا فتحت دروب من جهاز ثاني، حطها فيه مرة وحدة.": "On the website, keys are saved in this browser on this device only and sent with each search; the server doesn't keep them. On another device, enter them there once.",
 "المفتاح شكله ناقص. انسخه كامل والصقه مرة ثانية.": "The key looks incomplete. Copy all of it and paste it again.",
 "ما قدرنا نستخدم المفتاح. تأكد إنك نسخته كامل.": "We couldn't use the key. Make sure you copied all of it.",
-"الأسعار من قوقل فلايتس. ": "Prices from Google Flights. "
+"الأسعار من قوقل فلايتس. ": "Prices from Google Flights. ",
+"ما لقينا أسعار لهالشهر": "No prices for this month",
+"قوقل يعطي أسعار الوجهات للست شهور الجاية بس. جرب شهر أقرب.": "Google gives destination prices for the next six months only. Try a closer month.",
+"المصدر المجاني ما عنده أسعار من مدينتك. حط مفتاح SerpApi من الإعدادات وتطلع لك أسعار قوقل.": "The free source has no prices from your city. Add a SerpApi key in settings to get Google's prices.",
+"أكثر من شركة": "Several airlines"
 };
