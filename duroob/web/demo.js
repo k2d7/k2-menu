@@ -2,7 +2,7 @@
    Every number here is invented (seeded, so it stays stable) and the UI labels it "تجريبي". */
 (function () {
   const META = window.DUROOB_META;
-  let CITIES = [];
+  let CITIES = [], AIRPORTS = {};
   const SITES = ["Booking.com", "Agoda.com", "Expedia", "Hotels.com", "Trip.com", "موقع الفندق"];
   const NAMES = ["فندق الواحة", "نزل القافلة", "برج النخيل", "دار الضيافة", "فندق المنارة", "أجنحة السراب", "فندق الديرة",
     "منتجع الكثبان", "فندق الريم", "نُزل البخور", "فندق درب الحرير", "شقق الياسمين", "فندق الفنار", "أجنحة اللؤلؤ",
@@ -14,12 +14,13 @@
   function rnd(seed) { let x = hash(seed) || 1; return () => { x ^= x << 13; x >>>= 0; x ^= x >> 17; x ^= x << 5; x >>>= 0; return x / 4294967296; }; }
   function cityByIata(code) { return CITIES.find(c => c.iata === code) || null; }
   const COORDS = { RUH: [24.71, 46.67], JED: [21.54, 39.17], DMM: [26.42, 50.09], MED: [24.47, 39.61], AHB: [18.22, 42.51], TIF: [21.27, 40.42], ELQ: [26.3, 43.77], TUF: [28.38, 36.56], HAS: [27.52, 41.69], GIZ: [16.89, 42.55], YNB: [24.09, 38.06], ULH: [26.61, 37.92], HOF: [25.38, 49.59] };
-  function coords(code) { const c = cityByIata(code); if (c) return [c.lat, c.lng]; return COORDS[code] || [30, 40]; }
+  function coords(code) { const c = cityByIata(code); if (c) return [c.lat, c.lng]; const a = AIRPORTS[code]; if (a) return [a.lat, a.lng]; return COORDS[code] || [30, 40]; }
   function km(a, b) {
     const [la1, lo1] = coords(a), [la2, lo2] = coords(b), r = Math.PI / 180;
     const d = Math.sin((la2 - la1) * r / 2) ** 2 + Math.cos(la1 * r) * Math.cos(la2 * r) * Math.sin((lo2 - lo1) * r / 2) ** 2;
     return Math.max(300, 12742 * Math.asin(Math.sqrt(d)));
   }
+  function km2(a, b, c, d) { const r = Math.PI / 180, x = Math.sin((c - a) * r / 2) ** 2 + Math.cos(a * r) * Math.cos(c * r) * Math.sin((d - b) * r / 2) ** 2; return 12742 * Math.asin(Math.sqrt(x)); }
   function season(day) {
     const s = (window.DUROOB_SEASONS || META.seasons).filter(s => day >= s.from && day <= s.to);
     let f = 1;
@@ -155,7 +156,8 @@
     "places"(q) {
       const t = (q.term || "").trim().toLowerCase(); if (!t) return [];
       const list = CITIES.filter(c => c.iata).map(c => ({ code: c.iata, name: c.ar, city: c.ar, type: "city", country: c.country, country_code: c.country, lat: c.lat, lng: c.lng }))
-        .concat(EXTRA_AIRPORTS.map(a => ({ code: a.code, name: a.ar, city: a.ar, type: "city", country: "السعودية", country_code: "SA" })));
+        .concat(EXTRA_AIRPORTS.map(a => ({ code: a.code, name: a.ar, city: a.ar, type: "city", country: "السعودية", country_code: "SA" })))
+        .concat(Object.entries(AIRPORTS).map(([code, a]) => ({ code, name: a.ar, city: a.ar, type: "airport", country: a.cc, country_code: a.cc })));
       const seen = new Set();
       return list.filter(p => (p.name.includes(t) || p.code.toLowerCase().startsWith(t) || (CITIES.find(c => c.iata === p.code) || { en: "" }).en.toLowerCase().startsWith(t)) && !seen.has(p.code) && seen.add(p.code)).slice(0, 8);
     },
@@ -230,6 +232,64 @@
       });
       return { windows, demo: true };
     },
+
+    "flights/smart"(q) {
+      const o = q.origin, d = q.destination, dep = q.depart, ret = q.return || null;
+      const base = cheapest(o, d, dep, ret), out = cheapest(o, d, dep), back = ret ? cheapest(d, o, ret) : null;
+      const res = { base, mixed: null, split: [], nearby: [], demo: true };
+      if (ret && out && back) res.mixed = { out, back, total: out.price + back.price };
+      for (const h of ["DXB", "DOH", "BAH", "IST", "CAI"]) {
+        if (h === o || h === d) continue;
+        const l1 = cheapest(o, h, dep), l2 = cheapest(h, d, dep);
+        if (l1 && l2 && out && l1.price + l2.price < out.price * 0.97) res.split.push({ hub: h, leg1: l1, leg2: Object.assign({}, l2, { departure_at: dep + "T" + String((Number(l1.departure_at.slice(11, 13)) + 5) % 24).padStart(2, "0") + ":30:00+03:00" }), total: l1.price + l2.price, gap_hours: 4.5 });
+      }
+      res.split = res.split.sort((a, b) => a.total - b.total).slice(0, 3);
+      const near = { RUH: ["ELQ"], DMM: ["BAH", "HOF"], JED: ["TIF", "MED"], MED: ["JED", "YNB"] }[o] || [];
+      for (const a of near) { const go = cheapest(a, d, dep), bk = ret ? cheapest(d, a, ret) : null; if (go && (bk || !ret)) res.nearby.push({ kind: "origin", airport: a, km: Math.round(km(o, a)), out: go, back: bk, total: go.price + (bk ? bk.price : 0) }); }
+      const nd = { DXB: ["SHJ", "AUH"], IST: ["SAW"], DOH: ["BAH"], CAI: ["SPX"] }[d] || [];
+      for (const a of nd) { const go = cheapest(o, a, dep), bk = ret ? cheapest(a, o, ret) : null; if (go && (bk || !ret)) res.nearby.push({ kind: "destination", airport: a, km: Math.round(km(d, a)), out: go, back: bk, total: go.price + (bk ? bk.price : 0) }); }
+      res.nearby.sort((a, b) => a.total - b.total);
+      return res;
+    },
+    "flights/matrix"(q) {
+      const deps = [], rets = [], cells = {};
+      for (let i = -3; i <= 3; i++) { deps.push(addDays(q.depart, i)); rets.push(addDays(q.return, i)); }
+      for (const a of deps) for (const b of rets) if (b > a) { const t = cheapest(q.origin, q.destination, a, b); cells[`${a}|${b}`] = t ? { price: t.price, airline: t.airline, link: t.link } : null; }
+      return { deps, rets, cells, demo: true };
+    },
+    "multicity"(q) {
+      const cities = q.cities.split(","), nights = (q.nights || "").split(",").map(Number), back = q.return !== "0";
+      let order = cities.slice(), orders = [];
+      if (q.optimize === "1" && cities.length >= 2 && cities.length <= 4) {
+        const perms = a => a.length <= 1 ? [a] : a.flatMap((x, i) => perms(a.slice(0, i).concat(a.slice(i + 1))).map(p => [x].concat(p)));
+        const m = q.start.slice(0, 7);
+        for (const p of perms(cities)) {
+          const seq = [q.origin, ...p].concat(back ? [q.origin] : []);
+          let sum = 0; for (let i = 0; i < seq.length - 1; i++) { const t = cheapest(seq[i], seq[i + 1], monthDays(m)[3] || q.start); sum += t ? t.price : 9e9; }
+          orders.push({ order: p, estimate: sum });
+        }
+        orders.sort((a, b) => a.estimate - b.estimate); order = orders[0].order;
+      }
+      const stay = Object.fromEntries(cities.map((c, i) => [c, nights[i] || 3]));
+      const seq = [q.origin, ...order].concat(back ? [q.origin] : []);
+      const legs = []; let day = q.start;
+      for (let i = 0; i < seq.length - 1; i++) { legs.push({ from: seq[i], to: seq[i + 1], date: day, ticket: cheapest(seq[i], seq[i + 1], day) }); day = addDays(day, stay[seq[i + 1]] || 3); }
+      return { legs, total: legs.reduce((s, l) => s + (l.ticket ? l.ticket.price : 0), 0), complete: legs.every(l => l.ticket), orders: orders.slice(0, 6), optimized: orders.length > 0, demo: true };
+    },
+    "umrah"(q) {
+      const nm = Number(q.makkah || 4), nd = Number(q.madinah || 0), total = nm + nd, first = q.first || "makkah";
+      const inAp = nd === 0 ? "JED" : first === "makkah" ? "JED" : "MED", outAp = nd === 0 ? "JED" : first === "makkah" ? "MED" : "JED";
+      const mk = hotelsOf("g293993").slice(0, 8), md = hotelsOf("g298551").slice(0, 8);
+      const crowd = day => { let lv = 0; const why = []; for (const s of (window.DUROOB_SEASONS || META.seasons)) if (day >= s.from && day <= s.to) { if (s.kind === "ramadan") { const l = day >= addDays(s.to, -9); lv = Math.max(lv, l ? 3 : 2); why.push(l ? "العشر الأواخر" : "رمضان"); } else if (s.kind === "hajj") { lv = 3; why.push("موسم الحج"); } else { lv = Math.max(lv, s.kind === "holiday" ? 2 : 1); why.push(s.name); } } if ([4, 5].includes(dow(day))) lv = Math.max(lv, 1); return { level: lv, why: Array.from(new Set(why)) }; };
+      const cands = monthDays(q.month).map(s => { const e = addDays(s, total), fi = q.origin === inAp ? null : cheapest(q.origin, inAp, s), fo = q.origin === outAp ? null : cheapest(outAp, q.origin, e); return { start: s, end: e, in: fi, out: fo, flights: (fi ? fi.price : 0) + (fo ? fo.price : 0), crowd: crowd(s) }; });
+      const ranked = cands.sort((a, b) => a.flights * (1 + 0.15 * a.crowd.level) - b.flights * (1 + 0.15 * b.crowd.level)).slice(0, 3);
+      const best = (hs, ci, co, center) => hs.map(h => ({ id: h.id, name: h.name, rating: h.rating, km: Math.round(km2(h.lat, h.lng, center[0], center[1]) * 100) / 100, night: ratesFor(h, ci, co, 2)[0].night, site: ratesFor(h, ci, co, 2)[0].site })).sort((a, b) => a.night - b.night)[0];
+      const windows = ranked.map(w => { const s = w.start; const mkIn = first === "makkah" ? s : addDays(s, nd), mdIn = first === "makkah" ? addDays(s, nm) : s;
+        return Object.assign(w, { makkah: best(mk, mkIn, addDays(mkIn, nm), [21.4225, 39.8262]), madinah: nd ? best(md, mdIn, addDays(mdIn, nd), [24.4672, 39.6111]) : null, train: nd ? 160 : 0, in_airport: inAp, out_airport: outAp }); });
+      return { windows, nights: { makkah: nm, madinah: nd }, rooms: Number(q.rooms || 1), per_room: 2, demo: true };
+    },
+    "notify/test"() { return { ok: true, demo: true }; },
+    "autostart"() { return { autostart: false }; },
     "history"(q) {
       const base = Number(q.current || 1000);
       return histPoints(base, q.kind + q.key + (q.day || ""));
@@ -249,7 +309,7 @@
   };
 
   window.DuroobDemo = {
-    init(cities) { CITIES = cities; },
+    init(cities, airports) { CITIES = cities; AIRPORTS = airports || {}; },
     call(path, q, body) {
       if (path.startsWith("store/")) {
         const k = "store:" + path.slice(6);

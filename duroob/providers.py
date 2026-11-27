@@ -461,3 +461,20 @@ def serp_flights(key, origin, destination, depart, ret, adults, children, infant
         "level": insights.get("price_level"),
         "typical": insights.get("typical_price_range"),
     }
+
+
+# ---------------------------------------------------------------- phone alerts (ntfy.sh)
+def ntfy_send(topic, title, message, click=None, tags=None, server="https://ntfy.sh"):
+    """Push a notification to the ntfy app on the user's phone (free, no account)."""
+    if not topic:
+        raise SourceError("ما فيه قناة تنبيهات. فعّلها من الإعدادات.")
+    body = {"topic": topic, "title": title, "message": message, "tags": tags or ["camel"]}
+    if click:
+        body["click"] = click
+    req = urllib.request.Request(server, data=json.dumps(body).encode("utf-8"),
+                                 headers={"Content-Type": "application/json", "User-Agent": UA}, method="POST")
+    try:
+        with urllib.request.urlopen(req, timeout=20) as r:
+            return r.status == 200
+    except (urllib.error.URLError, TimeoutError) as e:
+        raise SourceError("ما قدرت أرسل التنبيه للجوال. تأكد من الإنترنت.") from e

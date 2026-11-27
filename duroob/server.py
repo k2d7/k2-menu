@@ -38,10 +38,13 @@ else:
     DATA = os.path.join(os.path.expanduser("~"), ".duroob")
 os.makedirs(DATA, exist_ok=True)
 CONFIG = os.path.join(DATA, "config.json")
-STORE_NAMES = {"favorites", "watches", "history", "groups", "prefs", "seasons", "baggage"}
+STORE_NAMES = {"favorites", "watches", "history", "groups", "prefs", "seasons", "baggage", "trips", "holidays"}
 
 with open(os.path.join(WEB, "data", "cities.json"), encoding="utf-8") as f:
     CITIES = {c["id"]: c for c in json.load(f)}
+with open(os.path.join(WEB, "data", "airports.json"), encoding="utf-8") as f:
+    AIRPORTS = json.load(f)
+BACKGROUND = "--background" in sys.argv
 
 _lock = threading.Lock()
 _last_ping = time.time()
@@ -186,7 +189,7 @@ def api_settings(q, body):
         for k in ("tp_token", "tp_marker", "serp_key"):
             if k in body:
                 cfg[k] = str(body[k] or "").strip()
-        for k in ("home", "use_serp_hotels", "use_serp_flights"):
+        for k in ("home", "use_serp_hotels", "use_serp_flights", "alerts_on", "ntfy_topic"):
             if k in body:
                 cfg[k] = body[k]
         save_config(cfg)
@@ -198,6 +201,10 @@ def api_settings(q, body):
         "use_serp_hotels": cfg.get("use_serp_hotels", True),
         "use_serp_flights": cfg.get("use_serp_flights", False),
         "data_dir": DATA,
+        "alerts_on": bool(cfg.get("alerts_on")),
+        "ntfy_topic": cfg.get("ntfy_topic", ""),
+        "autostart": autostart_status(),
+        "can_autostart": os.name == "nt" and FROZEN,
     }
 
 
@@ -418,6 +425,400 @@ def api_trip(q, body):
     return {"windows": res}
 
 
+# ---------------------------------------------------------------- smarter flights
+HUBS = ["DXB", "SHJ", "AUH", "DOH", "BAH", "KWI", "MCT", "IST", "CAI", "AMM", "RUH", "JED", "DMM"]
+
+
+def _km(a, b):
+    A, B = AIRPORTS.get(a), AIRPORTS.get(b)
+    if not A or not B:
+        return None
+    r = 3.141592653589793 / 180
+    import math
+    x = math.sin((B["lat"] - A["lat"]) * r / 2) ** 2 + math.cos(A["lat"] * r) * math.cos(B["lat"] * r) * math.sin((B["lng"] - A["lng"]) * r / 2) ** 2
+    return 12742 * math.asin(math.sqrt(x))
+
+
+def nearby(code, radius):
+    out = []
+    for k in AIRPORTS:
+        if k != code:
+            d = _km(code, k)
+            if d is not None and d <= radius:
+                out.append((d, k))
+    return [k for _, k in sorted(out)][:4]
+
+
+def _cheapest(token, o, d, day, ret=None, direct=False):
+    try:
+        t = P.tp_search(token, o, d, day, ret, direct, limit=30)
+    except P.SourceError as e:
+        if "مفتاح" in str(e) or "NO_TP" in str(e):
+            raise
+        return []
+    return sorted(t, key=lambda x: x["price"])
+
+
+def _arrival(t):
+    try:
+        dep = dt.datetime.fromisoformat(t["departure_at"])
+        return dep + dt.timedelta(minutes=int(t.get("duration_to") or t.get("duration") or 0))
+    except (TypeError, ValueError):
+        return None
+
+
+def api_flights_smart(q, body):
+    """Cheaper ways to make the same trip: two one-ways, self-transfer via a hub, nearby airports."""
+    cfg = load_config()
+    tok = cfg.get("tp_token")
+    o, d, dep = q["origin"].upper(), q["destination"].upper(), q["depart"]
+    ret = q.get("return") or None
+    out = {"base": None, "mixed": None, "split": [], "nearby": []}
+    jobs = {"base": (o, d, dep, ret), "out": (o, d, dep, None)}
+    if ret:
+        jobs["back"] = (d, o, ret, None)
+    for h in HUBS:
+        if h in (o, d):
+            continue
+        jobs[f"h1:{h}"] = (o, h, dep, None)
+        jobs[f"h2:{h}"] = (h, d, dep, None)
+        jobs[f"h2n:{h}"] = (h, d, add_days(dep, 1), None)
+    alt_o = nearby(o, 450)
+    alt_d = nearby(d, 260)
+    for a in alt_o:
+        jobs[f"no:{a}"] = (a, d, dep, None)
+        if ret:
+            jobs[f"nob:{a}"] = (d, a, ret, None)
+    for a in alt_d:
+        jobs[f"nd:{a}"] = (o, a, dep, None)
+        if ret:
+            jobs[f"ndb:{a}"] = (a, o, ret, None)
+    with ThreadPoolExecutor(8) as ex:
+        res = dict(zip(jobs, ex.map(lambda a: _cheapest(tok, *a), jobs.values())))
+    first = lambda k: (res.get(k) or [None])[0]
+    base = first("base")
+    out["base"] = base
+    if ret and first("out") and first("back"):
+        a, b = first("out"), first("back")
+        out["mixed"] = {"out": a, "back": b, "total": a["price"] + b["price"]}
+    one_way_ref = first("out")
+    for h in HUBS:
+        legs1 = res.get(f"h1:{h}") or []
+        legs2 = (res.get(f"h2:{h}") or []) + (res.get(f"h2n:{h}") or [])
+        best = None
+        for l1 in legs1[:8]:
+            arr = _arrival(l1)
+            for l2 in legs2[:10]:
+                try:
+                    dep2 = dt.datetime.fromisoformat(l2["departure_at"])
+                except (TypeError, ValueError):
+                    continue
+                if arr is None:
+                    continue
+                gap = (dep2 - arr).total_seconds() / 3600
+                if 3 <= gap <= 24 and (best is None or l1["price"] + l2["price"] < best["total"]):
+                    best = {"hub": h, "leg1": l1, "leg2": l2, "total": l1["price"] + l2["price"], "gap_hours": round(gap, 1)}
+        if best and (one_way_ref is None or best["total"] < one_way_ref["price"]):
+            out["split"].append(best)
+    out["split"].sort(key=lambda x: x["total"])
+    out["split"] = out["split"][:4]
+    for a in alt_o:
+        go, back = first(f"no:{a}"), first(f"nob:{a}") if ret else None
+        if go and (back or not ret):
+            out["nearby"].append({"kind": "origin", "airport": a, "km": round(_km(o, a) or 0), "out": go, "back": back,
+                                  "total": go["price"] + (back["price"] if back else 0)})
+    for a in alt_d:
+        go, back = first(f"nd:{a}"), first(f"ndb:{a}") if ret else None
+        if go and (back or not ret):
+            out["nearby"].append({"kind": "destination", "airport": a, "km": round(_km(d, a) or 0), "out": go, "back": back,
+                                  "total": go["price"] + (back["price"] if back else 0)})
+    out["nearby"].sort(key=lambda x: x["total"])
+    for x in [out["base"], out["mixed"] and out["mixed"]["out"], out["mixed"] and out["mixed"]["back"]]:
+        if x:
+            x["link"] = _marker(x["link"], cfg)
+    return out
+
+
+def api_flights_matrix(q, body):
+    """Round-trip price grid: departure ±3 days × return ±3 days."""
+    cfg = load_config()
+    o, d, dep, ret = q["origin"].upper(), q["destination"].upper(), q["depart"], q["return"]
+    deps = [add_days(dep, i) for i in range(-3, 4)]
+    rets = [add_days(ret, i) for i in range(-3, 4)]
+    pairs = sorted({(a[:7], b[:7]) for a in deps for b in rets})
+    grid = {}
+    for dm, rm in pairs:
+        try:
+            tickets = P.tp_search(cfg.get("tp_token"), o, d, dm, rm, False, limit=1000)
+        except P.SourceError as e:
+            if "مفتاح" in str(e) or "NO_TP" in str(e):
+                raise
+            continue
+        for t in tickets:
+            k = f"{(t['departure_at'] or '')[:10]}|{(t['return_at'] or '')[:10]}"
+            if k not in grid or t["price"] < grid[k]["price"]:
+                grid[k] = {"price": t["price"], "airline": t["airline"], "link": _marker(t["link"], cfg)}
+    cells = {f"{a}|{b}": grid.get(f"{a}|{b}") for a in deps for b in rets if b > a}
+    return {"deps": deps, "rets": rets, "cells": cells}
+
+
+def api_multicity(q, body):
+    """Multi-city trip. With optimize=1 the middle cities are reordered to the cheapest order."""
+    import itertools
+    cfg = load_config()
+    tok = cfg.get("tp_token")
+    origin = q["origin"].upper()
+    cities = [c.upper() for c in q["cities"].split(",") if c.strip()][:5]
+    nights = [max(1, int(n)) for n in (q.get("nights") or "").split(",") if n.strip().isdigit()]
+    nights += [3] * (len(cities) - len(nights))
+    start = q["start"]
+    back_home = q.get("return", "1") == "1"
+    orders = [tuple(cities)]
+    estimates = []
+    if q.get("optimize") == "1" and 2 <= len(cities) <= 4:
+        month = start[:7]
+        pts = [origin] + cities
+        pairs = {(a, b) for a in pts for b in pts if a != b}
+
+        def est(p):
+            t = _cheapest(tok, p[0], p[1], month)
+            return p, (t[0]["price"] if t else None)
+        with ThreadPoolExecutor(8) as ex:
+            price = dict(ex.map(est, pairs))
+        for perm in itertools.permutations(cities):
+            seq = [origin, *perm] + ([origin] if back_home else [])
+            legs = [price.get((seq[i], seq[i + 1])) for i in range(len(seq) - 1)]
+            if all(legs):
+                estimates.append({"order": list(perm), "estimate": sum(legs)})
+        estimates.sort(key=lambda x: x["estimate"])
+        if estimates:
+            orders = [tuple(estimates[0]["order"])]
+    seq = [origin, *orders[0]] + ([origin] if back_home else [])
+    stay = dict(zip(cities, nights))
+    legs, day = [], start
+    for i in range(len(seq) - 1):
+        legs.append({"from": seq[i], "to": seq[i + 1], "date": day})
+        if i < len(seq) - 2 or not back_home:
+            day = add_days(day, stay.get(seq[i + 1], 3))
+
+    def price_leg(leg):
+        t = _cheapest(tok, leg["from"], leg["to"], leg["date"])
+        if not t:  # nothing cached that day: show the cheapest that month as a guide
+            t = _cheapest(tok, leg["from"], leg["to"], leg["date"][:7])
+            leg["month_guide"] = bool(t)
+        leg["ticket"] = t[0] if t else None
+        if leg["ticket"]:
+            leg["ticket"]["link"] = _marker(leg["ticket"]["link"], cfg)
+        return leg
+    with ThreadPoolExecutor(6) as ex:
+        legs = list(ex.map(price_leg, legs))
+    total = sum(l["ticket"]["price"] for l in legs if l["ticket"])
+    return {"legs": legs, "total": total, "complete": all(l["ticket"] for l in legs),
+            "orders": estimates[:6], "optimized": bool(estimates)}
+
+
+# ---------------------------------------------------------------- umrah planner
+MAKKAH, MADINAH = "g293993", "g298551"
+HARAM = (21.4225, 39.8262)
+NABAWI = (24.4672, 39.6111)
+TRAIN_SAR = 160  # Haramain train, economy, one way (approximate)
+
+
+def _near_hotels(cid, center, n=8):
+    import math
+    hs = P.xo_list(cid, limit=60, sort="popularity") or []
+    def dist(h):
+        if h["lat"] is None:
+            return 99
+        r = math.pi / 180
+        x = math.sin((h["lat"] - center[0]) * r / 2) ** 2 + math.cos(center[0] * r) * math.cos(h["lat"] * r) * math.sin((h["lng"] - center[1]) * r / 2) ** 2
+        return 12742 * math.asin(math.sqrt(x))
+    for h in hs:
+        h["km"] = round(dist(h), 2)
+    return sorted([h for h in hs if h["km"] <= 1.5], key=lambda h: -(h["rating"] or 0))[:n]
+
+
+def api_umrah(q, body):
+    cfg = load_config()
+    tok = cfg.get("tp_token")
+    origin = q["origin"].upper()
+    month = q["month"]
+    nm, nd = max(1, int(q.get("makkah", 4))), max(0, int(q.get("madinah", 3)))
+    adults = int(q.get("adults", 2))
+    kids = ages(q.get("children"))
+    per_room, rooms = room_query(adults, kids, int(q.get("rooms", 1)))
+    first = q.get("first", "makkah")
+    total_n = nm + nd
+    starts = [d for d in _month_days(month) if dt.date.fromisoformat(d) > dt.date.today()]
+    if not starts:
+        return {"windows": []}
+    # inbound/outbound airports depend on the order of the visit
+    in_ap, out_ap = ("JED", "MED") if first == "makkah" else ("MED", "JED")
+    if nd == 0:
+        in_ap = out_ap = "JED"
+    domestic = AIRPORTS.get(origin, {}).get("cc") == "SA"
+    cal, no_tp = {}, False
+    for key, (a, b, m) in {"in": (origin, in_ap, month), "out": (out_ap, origin, month),
+                           "out2": (out_ap, origin, add_days(starts[-1], total_n)[:7])}.items():
+        try:
+            cal[key] = P.tp_month_calendar(tok, a, b, m, True) if a != b else {}
+        except P.SourceError as e:
+            if "مفتاح" in str(e):
+                raise
+            no_tp = no_tp or "NO_TP" in str(e)
+            cal[key] = {}
+    outs = {**cal.get("out", {}), **cal.get("out2", {})}
+    cands = []
+    for s in starts:
+        e = add_days(s, total_n)
+        fi, fo = cal["in"].get(s), outs.get(e)
+        price = (fi["price"] if fi else None), (fo["price"] if fo else None)
+        cands.append({"start": s, "end": e, "in": fi, "out": fo, "flights": sum(p for p in price if p) if all(price) else None,
+                      "crowd": crowd(s, e)})
+    ranked = sorted([c for c in cands if c["flights"]], key=lambda c: (c["flights"] * (1 + 0.15 * c["crowd"]["level"])))[:3]
+    if not ranked:
+        ranked = sorted(cands, key=lambda c: c["crowd"]["level"])[:3]
+    mk = _near_hotels(MAKKAH, HARAM)
+    md = _near_hotels(MADINAH, NABAWI) if nd else []
+
+    def best_hotel(hotels, ci, co):
+        def rate(h):
+            try:
+                r = P.xo_rates(h["id"], ci, co, per_room, 1)
+            except P.SourceError:
+                return None
+            return {"id": h["id"], "name": h["name"], "km": h["km"], "rating": h["rating"], "night": r[0]["night"],
+                    "site": r[0]["site"], "lat": h["lat"], "lng": h["lng"]} if r else None
+        with ThreadPoolExecutor(8) as ex:
+            found = [x for x in ex.map(rate, hotels) if x]
+        return min(found, key=lambda x: x["night"]) if found else None
+
+    def plan(c):
+        s = c["start"]
+        if first == "makkah":
+            mk_in, mk_out, md_in, md_out = s, add_days(s, nm), add_days(s, nm), add_days(s, nm + nd)
+        else:
+            md_in, md_out, mk_in, mk_out = s, add_days(s, nd), add_days(s, nd), add_days(s, nd + nm)
+        c["makkah"] = best_hotel(mk, mk_in, mk_out)
+        c["madinah"] = best_hotel(md, md_in, md_out) if nd else None
+        c["train"] = TRAIN_SAR if nd else 0
+        c["in_airport"], c["out_airport"] = in_ap, out_ap
+        return c
+    with ThreadPoolExecutor(3) as ex:
+        windows = list(ex.map(plan, ranked))
+    return {"windows": windows, "nights": {"makkah": nm, "madinah": nd}, "rooms": rooms, "per_room": per_room,
+            "domestic": domestic, "no_flights": no_tp, "crowd_days": {c["start"]: c["crowd"] for c in cands}}
+
+
+def _month_days(month):
+    y, m = map(int, month.split("-"))
+    return [dt.date(y, m, d).isoformat() for d in range(1, calendar.monthrange(y, m)[1] + 1)]
+
+
+def crowd(start, end):
+    """Rough crowd level at the Haram for a stay: 0 light .. 3 very heavy (seasons are editable in the UI)."""
+    seasons = store_get("seasons") or DEFAULT_SEASONS
+    level, why = 0, []
+    d = dt.date.fromisoformat(start)
+    while d.isoformat() < end:
+        k = d.isoformat()
+        for s in seasons:
+            if s["from"] <= k <= s["to"]:
+                if s["kind"] == "ramadan":
+                    last10 = k >= (dt.date.fromisoformat(s["to"]) - dt.timedelta(days=9)).isoformat()
+                    lv = 3 if last10 else 2
+                    level = max(level, lv)
+                    why.append("العشر الأواخر" if last10 else "رمضان")
+                elif s["kind"] == "hajj":
+                    level = max(level, 3); why.append("موسم الحج")
+                elif s["kind"] == "holiday":
+                    level = max(level, 2); why.append(s["name"])
+                elif s["kind"] == "high":
+                    level = max(level, 1); why.append(s["name"])
+        if d.weekday() in (3, 4):  # Thursday, Friday
+            level = max(level, 1)
+        d += dt.timedelta(days=1)
+    return {"level": level, "why": sorted(set(why))}
+
+
+DEFAULT_SEASONS = [
+    {"name": "رمضان", "from": "2027-02-08", "to": "2027-03-09", "kind": "ramadan"},
+    {"name": "عيد الفطر", "from": "2027-03-10", "to": "2027-03-16", "kind": "holiday"},
+    {"name": "موسم الحج", "from": "2027-05-08", "to": "2027-05-21", "kind": "hajj"},
+    {"name": "إجازة الصيف", "from": "2027-06-24", "to": "2027-08-28", "kind": "high"},
+]
+
+
+# ---------------------------------------------------------------- alerts + background
+def api_notify_test(q, body):
+    cfg = load_config()
+    topic = (body or {}).get("topic") or cfg.get("ntfy_topic")
+    P.ntfy_send(topic, "دروب", "تمام! التنبيهات واصلة لجوالك. بنعلمك إذا نزل سعر شي تراقبه.", tags=["camel", "star"])
+    return {"ok": True}
+
+
+AUTOSTART_KEY = r"Software\Microsoft\Windows\CurrentVersion\Run"
+
+
+def autostart_status():
+    if os.name != "nt":
+        return False
+    try:
+        import winreg
+        with winreg.OpenKey(winreg.HKEY_CURRENT_USER, AUTOSTART_KEY) as k:
+            winreg.QueryValueEx(k, "Duroob")
+            return True
+    except OSError:
+        return False
+
+
+def api_autostart(q, body):
+    if os.name != "nt" or not FROZEN:
+        raise P.SourceError("التشغيل مع ويندوز يشتغل في نسخة الويندوز بس.")
+    import winreg
+    on = bool((body or {}).get("on"))
+    with winreg.OpenKey(winreg.HKEY_CURRENT_USER, AUTOSTART_KEY, 0, winreg.KEY_SET_VALUE) as k:
+        if on:
+            winreg.SetValueEx(k, "Duroob", 0, winreg.REG_SZ, f'"{sys.executable}" --background')
+        else:
+            try:
+                winreg.DeleteValue(k, "Duroob")
+            except OSError:
+                pass
+    return {"autostart": autostart_status()}
+
+
+def alert_for(w, r):
+    """Decide whether a watch result deserves a phone alert, and say why."""
+    price, prev = r.get("price"), r.get("prev")
+    if not price:
+        return None
+    if w.get("booked") and price < w["booked"] * 0.97:
+        if not w.get("cancel_by") or dt.date.today().isoformat() <= w["cancel_by"]:
+            return f"نزل عن سعر حجزك بـ {w['booked'] - price:,} ر.س. تقدر تلغي وتحجز من جديد."
+    if w.get("target") and price <= w["target"]:
+        return f"وصل للسعر اللي تبيه: {price:,} ر.س"
+    if prev and price < prev * 0.97:
+        return f"نزل من {prev:,} إلى {price:,} ر.س"
+    return None
+
+
+def background_loop():
+    time.sleep(60)
+    while True:
+        cfg = load_config()
+        last = cfg.get("last_bg_check", 0)
+        if cfg.get("alerts_on") and cfg.get("ntfy_topic") and time.time() - last > 3 * 3600:
+            try:
+                api_watch_check({}, {})
+            except Exception:  # never let the background checker die
+                pass
+            cfg = load_config()
+            cfg["last_bg_check"] = int(time.time())
+            save_config(cfg)
+        time.sleep(600)
+
+
 def api_history(q, body):
     return history(q["kind"], q["key"], q.get("day"))
 
@@ -446,8 +847,18 @@ def api_watch_check(q, body):
             w["last"] = price or prev
             w["checked"] = int(time.time())
             h = history(kind, key, day)
-            out.append({"id": w["id"], "price": price, "prev": prev, "dropped": bool(price and prev and price < prev),
-                        "below_target": bool(price and w.get("target") and price <= w["target"]), "history": h})
+            r = {"id": w["id"], "price": price, "prev": prev, "dropped": bool(price and prev and price < prev),
+                 "below_target": bool(price and w.get("target") and price <= w["target"]),
+                 "below_booked": bool(price and w.get("booked") and price < w["booked"] * 0.97), "history": h}
+            why = alert_for(w, r)
+            r["alert"] = why
+            if why and cfg.get("alerts_on") and cfg.get("ntfy_topic") and w.get("notified") != price:
+                try:
+                    P.ntfy_send(cfg["ntfy_topic"], "دروب · " + str(w.get("label", ""))[:80], why, tags=["chart_with_downwards_trend"])
+                    w["notified"] = price
+                except P.SourceError:
+                    pass
+            out.append(r)
         except (P.SourceError, KeyError, ValueError) as e:
             out.append({"id": w.get("id"), "error": str(e)})
     store_put("watches", watches)
@@ -466,6 +877,12 @@ ROUTES = {
     "trip": api_trip,
     "history": api_history,
     "watch/check": api_watch_check,
+    "flights/smart": api_flights_smart,
+    "flights/matrix": api_flights_matrix,
+    "multicity": api_multicity,
+    "umrah": api_umrah,
+    "notify/test": api_notify_test,
+    "autostart": api_autostart,
 }
 
 
@@ -579,6 +996,9 @@ def watchdog():
     while True:
         time.sleep(15)
         if time.time() - _last_ping > 120:
+            cfg = load_config()
+            if cfg.get("alerts_on") and autostart_status():
+                continue  # keep watching prices in the background
             os._exit(0)
 
 
@@ -588,7 +1008,8 @@ def main():
     for port in range(first, first + 10):
         url = f"http://127.0.0.1:{port}/"
         if already_running(port):
-            open_window(url)
+            if not BACKGROUND:
+                open_window(url)
             return
         try:
             srv = ThreadingHTTPServer(("127.0.0.1", port), Handler)
@@ -598,10 +1019,11 @@ def main():
     if srv is None:
         sys.exit("No free port for Duroob")
     srv.daemon_threads = True
-    if "--no-window" not in sys.argv:
+    if "--no-window" not in sys.argv and not BACKGROUND:
         threading.Timer(0.6, open_window, [url]).start()
-    if FROZEN:
+    if FROZEN and not BACKGROUND:
         threading.Thread(target=watchdog, daemon=True).start()
+    threading.Thread(target=background_loop, daemon=True).start()
     print(f"Duroob running at {url}")
     try:
         srv.serve_forever()

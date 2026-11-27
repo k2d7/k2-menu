@@ -6,53 +6,94 @@
 <title>دروب</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Reem+Kufi:wght@500;700&family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Aref+Ruqaa:wght@400;700&family=Amiri:ital,wght@0,400;0,700;1,400&family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&display=swap">
 <link rel="stylesheet" href="app.css">
 </head>
 <body>
 <!--APP-START-->
-<div id="app">
-  <header class="masthead">
-    <div class="masthead-inner">
-      <a class="brand" href="#flights" aria-label="دروب">
-        <svg class="brand-mark" viewBox="0 0 64 64" aria-hidden="true"><path d="M32 4l5 15h15l-12 9 5 15-13-9-13 9 5-15-12-9h15z" fill="currentColor" opacity=".9"/><path d="M6 58c10-10 18-12 26-12s16 2 26 12" fill="none" stroke="currentColor" stroke-width="2.5" stroke-dasharray="3 4"/></svg>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <linearGradient id="g-gold" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff1c4"/><stop offset=".5" stop-color="#e9cb78"/><stop offset="1" stop-color="#a77c25"/></linearGradient>
+    <symbol id="s-camel" viewBox="0 0 64 48"><path d="M6 30C6 24 10 20 16 20C20 10 32 10 36 20C39 20 41 21 43 22L48 13C49 10 53 9 55 11L58 13L55 14L53 14L49 24C48 27 46 29 44 29L44 45L41 45L40 33L37 33L37 45L34 45L33 31L20 31L19 45L16 45L15 33L12 33L12 45L9 45L9 31C7 31 5 33 4 36L3 35C4 32 5 31 6 30Z" fill="currentColor"/></symbol>
+    <symbol id="s-khatam" viewBox="0 0 100 100"><g fill="none" stroke="currentColor" stroke-width="1.6"><rect x="18" y="18" width="64" height="64"/><rect x="18" y="18" width="64" height="64" transform="rotate(45 50 50)"/><circle cx="50" cy="50" r="20"/><rect x="36" y="36" width="28" height="28" transform="rotate(45 50 50)"/><circle cx="50" cy="50" r="44" stroke-dasharray="2 4"/></g></symbol>
+    <symbol id="s-star" viewBox="0 0 64 64"><path d="M32 3l6.2 15 15-6.2-6.2 15L62 32l-15 6.2 6.2 15-15-6.2L32 62l-6.2-15-15 6.2 6.2-15L2 32l15-6.2-6.2-15 15 6.2z" fill="url(#g-gold)"/><circle cx="32" cy="32" r="8" fill="#0d1030"/><circle cx="32" cy="32" r="4" fill="url(#g-gold)"/></symbol>
+  </defs>
+</svg>
+<div class="shell" id="app">
+  <aside class="rail" id="rail" aria-label="الأقسام">
+    <div class="rail-inner">
+      <a class="brand" href="#home" aria-label="دروب، الرئيسية">
+        <svg class="brand-mark" aria-hidden="true"><use href="#s-star"/></svg>
         <span class="brand-name">دروب</span>
         <span class="brand-tag">دليلك لأرخص الطرق</span>
       </a>
-      <nav class="tabs" id="tabs" aria-label="الأقسام">
-        <a href="#flights" data-tab="flights">الطيران</a>
-        <a href="#hotels" data-tab="hotels">الفنادق</a>
-        <a href="#trip" data-tab="trip">رحلة كاملة</a>
-        <a href="#where" data-tab="where">وين أروح؟</a>
-        <a href="#watch" data-tab="watch">متابعاتي</a>
-        <a href="#setup" data-tab="setup">الإعدادات</a>
+      <nav class="route" id="route">
+        <div class="route-group">
+          <a class="station" href="#home" data-tab="home"><span class="pin"></span><span class="st-name">المجلس</span><span class="st-sub">البداية</span></a>
+        </div>
+        <div class="route-group"><span class="route-label">ابحث</span>
+          <a class="station" href="#flights" data-tab="flights"><span class="pin"></span><span class="st-name">الطيران</span><span class="st-sub">على خطى الملاحين</span></a>
+          <a class="station" href="#hotels" data-tab="hotels"><span class="pin"></span><span class="st-name">الفنادق</span><span class="st-sub">الخانات والمنازل</span></a>
+        </div>
+        <div class="route-group"><span class="route-label">خطّط</span>
+          <a class="station" href="#trip" data-tab="trip"><span class="pin"></span><span class="st-name">رحلة كاملة</span><span class="st-sub">من أول الدرب لآخره</span></a>
+          <a class="station" href="#multi" data-tab="multi"><span class="pin"></span><span class="st-name">متعددة المدن</span><span class="st-sub">طريق الحرير</span></a>
+          <a class="station" href="#where" data-tab="where"><span class="pin"></span><span class="st-name">وين أروح؟</span><span class="st-sub">طريق البخور</span></a>
+          <a class="station" href="#umrah" data-tab="umrah"><span class="pin"></span><span class="st-name">العمرة</span><span class="st-sub">درب زبيدة</span></a>
+          <a class="station" href="#holidays" data-tab="holidays"><span class="pin"></span><span class="st-name">الإجازات</span><span class="st-sub">مواسم المسير</span></a>
+        </div>
+        <div class="route-group"><span class="route-label">قافلتي</span>
+          <a class="station" href="#trips" data-tab="trips"><span class="pin"></span><span class="st-name">ملفات الرحلات</span><span class="st-sub">تحفة النظار</span></a>
+          <a class="station" href="#watch" data-tab="watch"><span class="pin"></span><span class="st-name">متابعاتي</span><span class="st-sub">عين الدليل</span></a>
+          <a class="station" href="#setup" data-tab="setup"><span class="pin"></span><span class="st-name">الإعدادات</span><span class="st-sub">عُدّة المسافر</span></a>
+        </div>
       </nav>
     </div>
+    <div class="rail-dunes" aria-hidden="true">
+      <svg viewBox="0 0 264 110" preserveAspectRatio="none">
+        <path d="M0 70 C40 50 80 52 120 66 S200 86 264 58 L264 110 L0 110Z" fill="#2a2347"/>
+        <path d="M0 88 C50 72 90 78 140 90 S220 98 264 84 L264 110 L0 110Z" fill="#1a1a3a"/>
+        <g color="#0e0f2a"><use href="#s-camel" x="150" y="44" width="34" height="26"/><use href="#s-camel" x="182" y="46" width="30" height="23"/><use href="#s-camel" x="210" y="48" width="27" height="21"/></g>
+      </svg>
+    </div>
     <div class="sadu" aria-hidden="true"></div>
-  </header>
+    <div class="rail-foot">القوافل تهتدي بالنجوم، وأنت تهتدي بدروب.</div>
+  </aside>
+  <div class="scrim" id="scrim"></div>
 
-  <div class="notice" id="notice" hidden></div>
-
-  <main id="view" class="wrap"></main>
-
-  <footer class="foot wrap">
-    <span>دروب · الأسعار من Aviasales وTripAdvisor (Xotelo) وGoogle عبر SerpApi. السعر النهائي يتأكد منه في موقع الحجز.</span>
-  </footer>
+  <div class="main">
+    <header class="topbar">
+      <a class="brand" href="#home" aria-label="دروب"><svg class="brand-mark" aria-hidden="true"><use href="#s-star"/></svg><span class="brand-name">دروب</span><span class="brand-tag"></span></a>
+      <button type="button" class="menu-btn" id="menu-btn" aria-controls="rail" aria-expanded="false">
+        <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 7h16M4 12h16M4 17h16"/></svg><span id="menu-label">الأقسام</span></button>
+    </header>
+    <div class="notice" id="notice" hidden></div>
+    <main id="view" class="wrap"></main>
+    <footer class="foot wrap">دروب · الأسعار من Aviasales وTripAdvisor (Xotelo) وGoogle عبر SerpApi، والجو من Open-Meteo. السعر النهائي يتأكد منه في موقع الحجز.</footer>
+  </div>
 </div>
 
 <div class="drawer" id="drawer" hidden>
   <div class="drawer-scrim" data-close></div>
   <section class="drawer-panel" role="dialog" aria-modal="true" aria-labelledby="drawer-title">
     <button class="icon-btn drawer-x" data-close aria-label="إغلاق">✕</button>
-    <div id="drawer-body"></div>
+    <div id="drawer-body" style="display:grid;gap:16px"></div>
   </section>
 </div>
 
 <div class="caravan-loader" id="loader" hidden>
   <div class="loader-card">
-    <svg viewBox="0 0 320 70" class="route" aria-hidden="true">
-      <path d="M10 50 C 80 10, 140 70, 200 35 S 300 30, 310 20" class="route-line"/>
-      <g class="camel"><path d="M0 0c3-6 7-6 9-2l2-5c2-3 6-3 7 1l2 4h3l1-3h3l-1 5-2 1v8h-2v-6h-6v6h-2v-6l-4 1v5H8v-6c-3 0-6-1-8-3z" fill="currentColor"/></g>
+    <svg class="loader-scene" viewBox="0 0 400 150" aria-hidden="true">
+      <circle cx="330" cy="34" r="14" fill="#f4e2a8" opacity=".9"/><circle cx="337" cy="30" r="13" fill="#141a48"/>
+      <g fill="#fff" opacity=".7"><circle cx="40" cy="20" r="1"/><circle cx="90" cy="44" r="1.2"/><circle cx="150" cy="16" r="1"/><circle cx="220" cy="38" r="1.3"/><circle cx="270" cy="12" r="1"/><circle cx="380" cy="60" r="1"/></g>
+      <path d="M0 118 C60 92 120 96 190 112 S320 130 400 100 L400 150 L0 150Z" fill="#2a2347"/>
+      <path class="trail" d="M0 112 C70 96 130 100 200 108 S330 118 400 96"/>
+      <g class="caravan" color="#e9cb78">
+        <g transform="translate(0 78)"><use class="camel" href="#s-camel" width="40" height="30"/></g>
+        <g transform="translate(-44 80)"><use class="camel" href="#s-camel" width="36" height="27"/></g>
+        <g transform="translate(-84 82)"><use class="camel" href="#s-camel" width="33" height="25"/></g>
+      </g>
+      <path d="M0 136 C80 120 150 126 230 138 S350 146 400 132 L400 150 L0 150Z" fill="#1a1a3a"/>
     </svg>
     <p id="loader-text">القافلة تدوّر لك على الأسعار…</p>
   </div>
@@ -62,6 +103,9 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 <script src="meta.js"></script>
 <script src="demo.js"></script>
-<script src="app.js"></script>
+<script src="core.js"></script>
+<script src="pages-search.js"></script>
+<script src="pages-plan.js"></script>
+<script src="pages-mine.js"></script>
 </body>
 </html>
