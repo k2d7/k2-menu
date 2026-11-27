@@ -1,7 +1,7 @@
 /* Duroob service worker: the app shell works offline; prices always come from the network. */
-const CACHE = "duroob-v1";
+const CACHE = "duroob-v2";
 const SHELL = ["./", "index.html", "app.css", "en.js", "i18n.js", "meta.js", "demo.js", "core.js", "extras.js", "pages-search.js", "pages-plan.js", "pages-more.js", "pages-mine.js",
-  "data/cities.json", "data/climate.json", "data/airports.json", "icons/icon-192.png", "manifest.webmanifest"];
+  "data/cities.json", "data/climate.json", "data/airports.json", "data/names.json", "icons/icon-192.png", "manifest.webmanifest"];
 self.addEventListener("install", e => { e.waitUntil(caches.open(CACHE).then(c => c.addAll(SHELL)).then(() => self.skipWaiting())); });
 self.addEventListener("activate", e => { e.waitUntil(caches.keys().then(ks => Promise.all(ks.filter(k => k !== CACHE).map(k => caches.delete(k)))).then(() => self.clients.claim())); });
 self.addEventListener("fetch", e => {

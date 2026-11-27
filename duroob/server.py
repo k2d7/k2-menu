@@ -239,6 +239,36 @@ def api_fx(q, body):
     return {"rates": None, "live": False}
 
 
+def _avia_link(o, d, dep, ret, adults=1):
+    dm = lambda x: x[8:10] + x[5:7] if x else ""
+    return f"https://www.aviasales.com/search/{o}{dm(dep)}{d}{dm(ret)}{adults}"
+
+
+def _nearby_dates(cfg, o, d, depart, ret, direct):
+    """No cached ticket for the exact dates: pair two one-ways, or show the closest cached days (±3)."""
+    tok = cfg.get("tp_token")
+    out = []
+    if ret:
+        outs = P.tp_search(tok, o, d, depart, None, direct, limit=30)[:5]
+        backs = P.tp_search(tok, d, o, ret, None, direct, limit=30)[:3]
+        for a in outs:
+            for b in backs:
+                out.append(dict(a, price=a["price"] + b["price"], return_at=b["departure_at"], return_transfers=b.get("transfers"),
+                                duration_back=b.get("duration_to"), combo=True,
+                                link=_marker(_avia_link(o, d, depart, ret), cfg), back_link=_marker(b["link"], cfg)))
+    if not out:
+        month = P.tp_search(tok, o, d, depart[:7], ret[:7] if ret else None, direct, limit=1000)
+        day0 = dt.date.fromisoformat(depart)
+        for t in month:
+            try:
+                gap = abs((dt.date.fromisoformat((t["departure_at"] or "")[:10]) - day0).days)
+            except ValueError:
+                continue
+            if gap <= 3:
+                out.append(dict(t, near_date=True, link=_marker(t["link"], cfg)))
+    return sorted(out, key=lambda t: t["price"])[:20]
+
+
 def api_flights_search(q, body):
     cfg = load_config()
     o, d = q["origin"].upper(), q["destination"].upper()
@@ -254,11 +284,20 @@ def api_flights_search(q, body):
         tickets = P.tp_search(cfg.get("tp_token"), o, d, depart, ret, direct)
         for t in tickets:
             t["link"] = _marker(t["link"], cfg)
+        if not tickets and len(depart) == 10:
+            tickets = _nearby_dates(cfg, o, d, depart, ret, direct)
+        # The free cache has no prices for some routes (Riyadh, for one): use live Google results if a key exists.
+        if not tickets and cfg.get("serp_key") and len(depart) == 10:
+            try:
+                tickets, insights = P.serp_flights(cfg["serp_key"], o, d, depart, ret, adults, children, infants,
+                                                   int(q.get("cls", 1)), 1 if direct else 0)
+            except P.SourceError:
+                tickets = []
     if tickets:
         best = min(tickets, key=lambda t: t["price"])
         day = (best["departure_at"] or depart)[:10] if len(depart) == 10 else depart
         record("flight", f"{o}-{d}{'-RT' if ret else ''}", day, best["price"])
-    return {"tickets": tickets, "insights": insights}
+    return {"tickets": tickets, "insights": insights, "no_cache": not tickets}
 
 
 def api_flights_calendar(q, body):

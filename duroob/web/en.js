@@ -1028,5 +1028,12 @@ window.DUROOB_EN = {
 "وريني وش أقدر": "Show me what I can do",
 "وش أفضل شهر؟": "What's the best month?",
 "يبقى لك": "You keep",
-"يزيد عن ميزانيتك": "Over your budget by"
+"يزيد عن ميزانيتك": "Over your budget by",
+"ما فيه أسعار محفوظة لهالخط في المصدر المجاني": "No saved prices for this route in the free source",
+"المصدر المجاني يحفظ أسعار عمليات البحث الأخيرة، وبعض المدن مثل الرياض ما لها بيانات فيه. تقدر تشوف الأسعار المباشرة من هنا:": "The free source keeps prices from recent searches, and some cities, such as Riyadh, have no data in it. You can see live prices here:",
+"الأسعار المباشرة في Aviasales": "Live prices on Aviasales",
+"أو جرب الإقلاع من مطار ثاني:": "Or try flying from another airport:",
+"وللأسعار المباشرة داخل دروب، حط مفتاح SerpApi المجاني (حوالي ٢٥٠ بحث بالشهر) من الإعدادات.": "For live prices inside Duroob, add a free SerpApi key (about 250 searches a month) in Settings.",
+"تذكرتين: ذهاب وعودة منفصلة": "Two tickets: separate outbound and return",
+"يوم قريب من تاريخك": "A day close to your date"
 };

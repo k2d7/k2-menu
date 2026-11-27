@@ -123,11 +123,13 @@
     if (!F.cal) { box.innerHTML = ""; return; }
     const q = F.lastQ || {};
     const note = `${F.cal.demo ? tx("أسعار تجريبية. ") : tx("أسعار محفوظة من عمليات بحث آخر أيام، وتتأكد منها لما تختار اليوم. ")}${tx("السعر لشخص بالغ")}${q.rt ? tx("، ذهاب وعودة") : ""}.`;
+    if (F.cal.kind === "year" && !Object.values(F.cal.months).some(Boolean) && !F.cal.demo) { box.innerHTML = noPrices(q); bindNoPrices(box, root); return; }
     if (F.cal.kind === "year") {
       box.innerHTML = yearCalendar(Object.fromEntries(Object.entries(F.cal.months).map(([m, t]) => [m, t && { price: t.price, tag: t.departure_at ? fmtDay(t.departure_at.slice(0, 10)) + (F.compare ? tx(" · من ") + placeName(t.from) : "") : "" }])), note);
       $$(".ycell", box).forEach(b => b.addEventListener("click", () => { $("#f-month").value = b.dataset.month; F.mode = "month"; setSeg(root, "mode", "month"); runFlights(root); }));
       return;
     }
+    if (!Object.values(F.cal.days).some(Boolean) && !F.cal.demo) { box.innerHTML = noPrices(q); bindNoPrices(box, root); return; }
     const cells = {};
     for (const [day, t] of Object.entries(F.cal.days)) if (t) cells[day] = { price: t.price, tag: F.compare && t.from ? t.from : "" };
     box.innerHTML = monthCalendar(F.cal.month, cells, { sel: F.sel, nav: true, onlyDow: F.weekend ? 4 : null, note }) +
@@ -207,10 +209,37 @@
       t._score = np * 0.6 + nd * 0.25 + Math.min(2, t.transfers || 0) / 2 * 0.15; t._total = prices[i];
     });
   }
+
+  // Live search links + tips when the free price cache has nothing for a route (Riyadh routes, for example).
+  function aviaLink(o, d, dep, ret, p) {
+    const dm = x => x ? x.slice(8, 10) + x.slice(5, 7) : "";
+    const pax = `${p.adults}${p.children || p.infants ? `${p.children}${p.infants}` : ""}`;
+    return `https://www.aviasales.com/search/${o}${dm(dep)}${d}${ret ? dm(ret) : ""}${pax}`;
+  }
+  function noPrices(q) {
+    const p = party(), dep = q.mode === "dates" ? q.dep : (q.month || defaultMonth()) + "-15", ret = q.rt ? (q.mode === "dates" ? q.ret : addDays(dep, q.nights || 7)) : "";
+    const alts = ["JED", "DMM", "MED"].filter(c => c !== q.o && c !== q.d);
+    return `<div class="panel panel-pad" style="display:grid;gap:10px">
+      <b style="font-size:16px">${tx("ما فيه أسعار محفوظة لهالخط في المصدر المجاني")}</b>
+      <span class="small muted">${tx("المصدر المجاني يحفظ أسعار عمليات البحث الأخيرة، وبعض المدن مثل الرياض ما لها بيانات فيه. تقدر تشوف الأسعار المباشرة من هنا:")}</span>
+      <div class="row"><a class="btn btn-primary btn-sm" href="${esc(aviaLink(q.o, q.d, dep, ret, p))}" target="_blank" rel="noopener">${tx("الأسعار المباشرة في Aviasales")} ${ICON.out}</a>
+        <a class="btn btn-ghost btn-sm" href="${esc(gFlights(q.o, q.d, dep, ret))}" target="_blank" rel="noopener">${tx("قوقل فلايتس")} ${ICON.out}</a></div>
+      ${alts.length ? `<div class="row" style="align-items:center"><span class="small">${tx("أو جرب الإقلاع من مطار ثاني:")}</span>${alts.map(c => `<button type="button" class="chip" data-alt-origin="${c}">${esc(placeName(c))}</button>`).join("")}</div>` : ""}
+      ${S.settings.has_serp ? "" : `<span class="small muted">${tx("وللأسعار المباشرة داخل دروب، حط مفتاح SerpApi المجاني (حوالي ٢٥٠ بحث بالشهر) من الإعدادات.")}</span>`}
+    </div>`;
+  }
+  function bindNoPrices(box, root) {
+    $$("[data-alt-origin]", box).forEach(b => b.addEventListener("click", () => {
+      const el = $("#f-o", root || document); if (!el) return;
+      el.value = `${placeName(b.dataset.altOrigin)} (${b.dataset.altOrigin})`; el.dataset.code = b.dataset.altOrigin; el.dataset.name = placeName(b.dataset.altOrigin);
+      $("#fform").requestSubmit();
+    }));
+  }
+
   function drawFlightResults() {
     const box = $("#f-res"); if (!box) return;
     const p = party(), f = F.filters, all = F.tickets;
-    if (!all.length) { box.innerHTML = F.cal ? "" : `<div class="panel empty"><b>${tx("ما لقينا رحلات بهالتاريخ")}</b>${tx("جرب «شهر كامل» عشان تشوف الأيام اللي فيها أسعار، أو غيّر التاريخ.")}</div>`; return; }
+    if (!all.length) { if (F.cal) { box.innerHTML = ""; return; } box.innerHTML = noPrices(F.lastQ || {}); bindNoPrices(box); return; }
     const bag = !!f.bag; scoreFlights(all, p, bag);
     const airlines = Array.from(new Set(all.map(t => t.airline))).sort();
     const maxPrice = Math.max(...all.map(t => t._total)), maxDur = Math.max(...all.map(t => t.duration_to || 0));
@@ -258,7 +287,7 @@
     return `<article class="panel fcard"><div class="legs">
         ${leg(dep, hhmm(t.departure_at), t.origin_airport || t.origin, t.destination_airport || t.destination, t.duration_to, t.transfers, tx("الذهاب"), hhmm(t.arrival_at))}
         ${t.return_at ? leg(ret, hhmm(t.return_at), t.destination_airport || t.destination, t.origin_airport || t.origin, t.duration_back, t.return_transfers, tx("العودة"), "") : ""}
-        <div class="badges">${best ? tx('<span class="badge best">الأفضل</span>') : ""}${cheap ? tx('<span class="badge cheap">الأرخص</span>') : ""}${F.compare ? `<span class="badge">${tx("من")} ${esc(placeName(t.origin))}</span>` : ""}<span class="badge">${esc(t.demo ? tx("تجريبي") : t.source)}${t.cached && !t.demo ? tx(" · سعر محفوظ") : ""}</span>${t.flight_number ? `<span class="badge">${tx("رحلة")} ${esc(t.airline)}${esc(t.flight_number)}</span>` : ""}</div>
+        <div class="badges">${best ? tx('<span class="badge best">الأفضل</span>') : ""}${cheap ? tx('<span class="badge cheap">الأرخص</span>') : ""}${F.compare ? `<span class="badge">${tx("من")} ${esc(placeName(t.origin))}</span>` : ""}${t.combo ? `<span class="badge warn">${tx("تذكرتين: ذهاب وعودة منفصلة")}</span>` : ""}${t.near_date ? `<span class="badge">${tx("يوم قريب من تاريخك")}</span>` : ""}<span class="badge">${esc(t.demo ? tx("تجريبي") : t.source)}${t.cached && !t.demo ? tx(" · سعر محفوظ") : ""}</span>${t.flight_number ? `<span class="badge">${tx("رحلة")} ${esc(t.airline)}${esc(t.flight_number)}</span>` : ""}</div>
       </div>
       <div class="pricebox"><div class="price-big">${sar(bag ? gp.withBag : gp.total)}</div>
         <div class="price-sub">${p.total > 1 ? `${tx("للمجموعة")}${gp.estimated ? tx(" (تقديري)") : ""} · ${sar(t.total_price ? t.price / p.total : t.price)} ${tx("للبالغ")}` : tx("للشخص")}</div>

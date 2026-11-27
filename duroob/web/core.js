@@ -54,7 +54,7 @@
   };
 
   // ------------------------------------------------------------------ state + data access
-  const X = { mode: "demo", cities: [], climate: {}, airports: {} };
+  const X = { mode: "demo", cities: [], climate: {}, airports: {}, names: {} };
   const S = { settings: {}, groups: [], favorites: [], watches: [], history: [], prefs: {}, seasons: null, baggage: null, trips: [], holidays: null };
   const PAGES = {};
 
@@ -66,6 +66,7 @@
     } catch (e) { X.mode = "demo"; }
     const load = async (f, def) => { try { return await (await fetch("data/" + f)).json(); } catch (e) { return def; } };
     [X.cities, X.climate, X.airports] = await Promise.all([load("cities.json", []), load("climate.json", {}), load("airports.json", {})]);
+    load("names.json", {}).then(n => { X.names = n || {}; });
     window.DuroobDemo.init(X.cities, X.airports);
     S.settings = await api("settings");
     try { const fx = await api("fx"); I18N.setFx(fx.rates, fx.live); } catch (e) { /* keep built-in rates */ }
@@ -241,10 +242,11 @@
   function placeName(code) {
     const c = X.cities.find(x => x.iata === code); if (c) return L(c);
     const a = X.airports[code]; if (a) return L(a);
+    const n = X.names[code]; if (n) return I18N.LANG === "en" ? n[1] : n[0];
     const h = META.homeAirports.find(x => x.code === code); return h ? h.name : code;
   }
   const cityByIata = code => X.cities.find(x => x.iata === code) || null;
-  const countryOfCode = code => { const c = cityByIata(code); if (c) return c.country; const a = X.airports[code]; return a ? a.cc : null; };
+  const countryOfCode = code => { const c = cityByIata(code); if (c) return c.country; const a = X.airports[code]; if (a) return a.cc; const n = X.names[code]; return n ? n[2] : null; };
   function cityField(id, label, cid) {
     const c = X.cities.find(x => x.id === cid);
     return `<div class="field"><label for="${id}">${label}</label><input class="input" id="${id}" autocomplete="off" placeholder="${tx("اكتب اسم المدينة")}" value="${esc(c ? c.ar : "")}" data-city="${esc(c ? c.id : "")}"><div class="ac-list" hidden></div></div>`;
