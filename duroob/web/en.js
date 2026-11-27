@@ -1051,5 +1051,8 @@ window.DUROOB_EN = {
 "ما لقينا أسعار لهالشهر": "No prices for this month",
 "قوقل يعطي أسعار الوجهات للست شهور الجاية بس. جرب شهر أقرب.": "Google gives destination prices for the next six months only. Try a closer month.",
 "المصدر المجاني ما عنده أسعار من مدينتك. حط مفتاح SerpApi من الإعدادات وتطلع لك أسعار قوقل.": "The free source has no prices from your city. Add a SerpApi key in settings to get Google's prices.",
-"أكثر من شركة": "Several airlines"
+"أكثر من شركة": "Several airlines",
+"الطيران من قوقل فلايتس، والفندق أرخص سعر من أشهر عشرة فنادق في": "Flights from Google Flights; the hotel is the cheapest of the ten most popular hotels in",
+"أسعار من قوقل فلايتس ومن المصدر المجاني، وتقديرية. ": "Prices from Google Flights and the free source; estimates. ",
+"الطيران من قوقل فلايتس، والفندق أرخص سعر من أشهر ستة فنادق، والمصروف تقديري. أسعار الأطفال تقديرية.": "Flights from Google Flights; the hotel is the cheapest of six popular hotels; spending is an estimate. Children's fares are estimates."
 };

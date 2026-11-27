@@ -321,6 +321,32 @@ def _google_month(cfg, o, d, month, one_way, nights, direct):
         return {}
 
 
+def _google_range(cfg, o, d, start, end, one_way=True, nights=None):
+    """Google Flights calendar between two dates (one search covers up to ~110 days)."""
+    today = dt.date.today()
+    s0 = max(dt.date.fromisoformat(start), today)
+    e0 = min(dt.date.fromisoformat(end), s0 + dt.timedelta(days=109), today + dt.timedelta(days=330))
+    if s0 > e0:
+        return {}
+    try:
+        return P.serp_calendar(cfg["serp_key"], o, d, s0.isoformat(), e0.isoformat(), one_way, nights)
+    except P.SourceError:
+        return {}
+
+
+def _cal(cfg, o, d, month, one_way=True, nights=None, direct=False):
+    """Month calendar: the free cache first, Google Flights when it has nothing (one search)."""
+    try:
+        days = P.tp_month_calendar(cfg.get("tp_token"), o, d, month, one_way, direct, nights)
+    except P.SourceError as e:
+        if not cfg.get("serp_key") or "مفتاح" in str(e):
+            raise
+        days = {}
+    if not days and cfg.get("serp_key"):
+        days = _google_month(cfg, o, d, month, one_way, nights, direct)
+    return days
+
+
 def _google_year(cfg, o, d, one_way, nights, direct):
     """Cheapest day of each coming month from Google Flights: three searches of 110 days each."""
     today = dt.date.today()
@@ -521,7 +547,7 @@ def api_trip(q, body):
     cands = []
     for m in months[:6]:
         try:
-            days = P.tp_month_calendar(cfg.get("tp_token"), o, d, m, one_way=False, nights=nights)
+            days = _cal(cfg, o, d, m, False, nights)
         except P.SourceError as e:
             if "مفتاح" in str(e) or "NO_TP" in str(e):
                 raise
@@ -714,6 +740,17 @@ def api_multicity(q, body):
             return p, (t[0]["price"] if t else None)
         with ThreadPoolExecutor(8) as ex:
             price = dict(ex.map(est, pairs))
+        # Legs from home with no free prices (Riyadh): one Google Explore search fills them (and the way back, roughly).
+        if cfg.get("serp_key") and any(price.get((origin, c)) is None for c in cities):
+            try:
+                g = {t["destination"]: t["price"] for t in P.serp_explore(cfg["serp_key"], origin, month, True)}
+            except P.SourceError:
+                g = {}
+            for c in cities:
+                if price.get((origin, c)) is None and c in g:
+                    price[(origin, c)] = g[c]
+                if price.get((c, origin)) is None and c in g:
+                    price[(c, origin)] = g[c]
         for perm in itertools.permutations(cities):
             seq = [origin, *perm] + ([origin] if back_home else [])
             legs = [price.get((seq[i], seq[i + 1])) for i in range(len(seq) - 1)]
@@ -735,6 +772,13 @@ def api_multicity(q, body):
         if not t:  # nothing cached that day: show the cheapest that month as a guide
             t = _cheapest(tok, leg["from"], leg["to"], leg["date"][:7])
             leg["month_guide"] = bool(t)
+        if not t and cfg.get("serp_key"):  # nothing free at all (Riyadh): Google's price for that day
+            g = _google_month(cfg, leg["from"], leg["to"], leg["date"][:7], True, None, False)
+            if g.get(leg["date"]):
+                t = [g[leg["date"]]]
+            elif g:
+                t = [min(g.values(), key=lambda x: x["price"])]
+                leg["month_guide"] = True
         leg["ticket"] = t[0] if t else None
         if leg["ticket"]:
             leg["ticket"]["link"] = _marker(leg["ticket"]["link"], cfg)
@@ -796,6 +840,13 @@ def api_umrah(q, body):
                 raise
             no_tp = no_tp or "NO_TP" in str(e)
             cal[key] = {}
+    # No free prices (Riyadh): Google's calendar, one search each way.
+    if cfg.get("serp_key"):
+        if not cal["in"] and origin != in_ap:
+            cal["in"] = _google_month(cfg, origin, in_ap, month, True, None, False)
+        if not cal["out"] and not cal["out2"] and out_ap != origin:
+            cal["out"] = _google_range(cfg, out_ap, origin, add_days(starts[0], total_n), add_days(starts[-1], total_n))
+        no_tp = no_tp and not (cal["in"] or cal["out"])
     outs = {**cal.get("out", {}), **cal.get("out2", {})}
     cands = []
     for s in starts:

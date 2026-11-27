@@ -73,7 +73,7 @@
           <button type="button" class="btn btn-ghost btn-sm" data-badd="${rows.indexOf(r)}">${ICON.scroll}</button></div></article>`;
     box.innerHTML = `${inside.length ? `<h2 class="sec">${tx("داخل ميزانيتك")} (${sar(amount)})</h2><div class="cards">${inside.map(card).join("")}</div>` : `<div class="panel empty"><b>${tx("ما لقينا رحلة كاملة داخل الميزانية")}</b>${tx("جرب ليالي أقل أو شهر ثاني، أو شوف أقرب الخيارات تحت.")}</div>`}
       ${over.length ? `<h2 class="sec" style="margin-top:12px">${tx("أقرب الخيارات فوق الميزانية")}</h2><div class="cards">${over.map(card).join("")}</div>` : ""}
-      <p class="small muted">${demo ? tx("أسعار تجريبية. ") : ""}${tx("الطيران من أسعار محفوظة، والفندق أرخص سعر من أشهر ستة فنادق، والمصروف تقديري. أسعار الأطفال تقديرية.")}</p>`;
+      <p class="small muted">${demo ? tx("أسعار تجريبية. ") : ""}${options.some(x => x.flight && x.flight.source === "Google Flights") ? tx("الطيران من قوقل فلايتس، والفندق أرخص سعر من أشهر ستة فنادق، والمصروف تقديري. أسعار الأطفال تقديرية.") : tx("الطيران من أسعار محفوظة، والفندق أرخص سعر من أشهر ستة فنادق، والمصروف تقديري. أسعار الأطفال تقديرية.")}</p>`;
     $$("[data-badd]", box).forEach(b => b.addEventListener("click", () => {
       const r = rows[Number(b.dataset.badd)];
       addToTrip({ type: "plan", title: `${L(r.c)}: ${fmtDay(r.depart)} – ${fmtDay(r.return)}`, sub: `${tx("طيران")} ${sar(r.fl)} · ${r.hotel.name} ${sar(r.ht)}`, price: r.total, link: r.flight.link, date: r.depart, city: r.c.id });

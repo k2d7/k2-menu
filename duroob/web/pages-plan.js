@@ -64,7 +64,7 @@
           <div class="row" style="gap:6px"><a class="btn btn-primary btn-sm" href="${esc(w.flight.link || gFlights(o, c.iata, w.depart, w.return))}" target="_blank" rel="noopener">${tx("الطيران")} ${ICON.out}</a><a class="btn btn-ghost btn-sm" href="${esc(gMaps(w.hotel.name, c.en))}" target="_blank" rel="noopener">${tx("الفندق")} ${ICON.out}</a>
           <button type="button" class="btn btn-ghost btn-sm" data-tadd="${i}">${ICON.scroll} ${tx("لملف رحلة")}</button></div></div>
       </article>`).join("")}</div>
-      <p class="small muted">${demo ? tx("أسعار تجريبية. ") : ""}${tx("الطيران من أسعار محفوظة، والفندق أرخص سعر من أشهر عشرة فنادق في")} ${esc(L(c))} ${tx("لنفس الليالي، والمصروف اليومي تقديري (")}${sar(daily)} ${tx("للشخص). أسعار الأطفال تقديرية.")}</p>`;
+      <p class="small muted">${demo ? tx("أسعار تجريبية. ") : ""}${windows.some(w => w.flight.source === "Google Flights") ? tx("الطيران من قوقل فلايتس، والفندق أرخص سعر من أشهر عشرة فنادق في") : tx("الطيران من أسعار محفوظة، والفندق أرخص سعر من أشهر عشرة فنادق في")} ${esc(L(c))} ${tx("لنفس الليالي، والمصروف اليومي تقديري (")}${sar(daily)} ${tx("للشخص). أسعار الأطفال تقديرية.")}</p>`;
     $$("[data-tadd]", box).forEach(b => b.addEventListener("click", () => {
       const w = rows[Number(b.dataset.tadd)];
       addToTrip({ type: "plan", title: `${tx("رحلة")} ${L(c)}: ${fmtDay(w.depart)} – ${fmtDay(w.return)}`, sub: `${tx("طيران")} ${sar(w.fl)} · ${w.hotel.name} ${sar(w.ht)} · ${tx("مصروف")} ${sar(w.sp)}`, price: w.total, link: w.flight.link, date: w.depart, city: c.id });
@@ -130,7 +130,7 @@
         <div class="row"><button type="button" class="btn btn-ghost btn-sm" id="m-trip">${ICON.scroll} ${tx("لملف رحلة")}</button></div>
       </section>
       ${r.optimized && r.orders.length > 1 ? `<section class="panel panel-pad"><h2 class="sec">${tx("الترتيبات الممكنة")}</h2><div class="tbl-wrap"><table class="rates"><thead><tr><th>${tx("الترتيب")}</th><th>${tx("تقدير للبالغ")}</th></tr></thead><tbody>${r.orders.map((x, i) => `<tr class="${i === 0 ? "best" : ""}"><td>${x.order.map(placeName).map(esc).join(" – ")}</td><td class="num">${sar(x.estimate)}</td></tr>`).join("")}</tbody></table></div><p class="small muted" style="margin:6px 0 0">${tx("التقدير من أرخص سعر بالشهر لكل رحلة، والأسعار فوق للتواريخ نفسها.")}</p></section>` : ""}
-      <p class="small muted">${r.demo ? tx("أسعار تجريبية. ") : tx("أسعار محفوظة وتقديرية. ")}${tx("كل رحلة تذكرة لحالها.")}</p>`;
+      <p class="small muted">${r.demo ? tx("أسعار تجريبية. ") : r.legs.some(l => l.ticket && l.ticket.source === "Google Flights") ? tx("أسعار من قوقل فلايتس ومن المصدر المجاني، وتقديرية. ") : tx("أسعار محفوظة وتقديرية. ")}${tx("كل رحلة تذكرة لحالها.")}</p>`;
     $("#m-trip").addEventListener("click", () => addToTrip({ type: "plan", title: `${tx("رحلة متعددة")}: ${r.legs.map(l => placeName(l.to)).join(" – ")}`, sub: `${tx("من")} ${fmtDay(r.legs[0].date)} · ${P(r.legs.length, "flight")}`, price: total, date: r.legs[0].date }));
   }
 
