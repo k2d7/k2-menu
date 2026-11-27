@@ -421,8 +421,12 @@
     $$(".cal-day[data-day]", box).forEach(b => b.addEventListener("click", () => runHotels(root, b.dataset.day)));
     bindCalNav(box, H.cal.month, m => { $("#h-month").value = m; H.mode = "month"; setSeg(root, "hmode", "month"); runHotels(root); });
   }
+  // Google Hotels prices cover the whole group; the free source prices one room.
+  const isG = h => h.source === "Google Hotels";
+  const mult = (h, ctx) => isG(h) ? 1 : ctx.rooms;
   function roomPlans(h, ctx) {
     const n = ctx.nights, p = ctx.party, base = h.night;
+    if (isG(h)) return [{ main: true, label: `${tx("سعر قوقل لكل الأشخاص")} (${p.adults + p.childAges.length})`, total: base * n, note: tx("قوقل يختار الغرف المناسبة لعددكم، وتشوف تفاصيلها في موقع الحجز") }];
     const plans = [{ main: true, label: `${P(ctx.rooms, "room")} · ${ctx.perRoom} ${tx("بالغرفة")}`, total: base * ctx.rooms * n, note: tx("السعر من المصدر") }];
     if (p.beds >= 3 && ctx.rooms === 1) plans.push({ label: tx("غرفتين عاديتين (راحة أكثر)"), total: Math.round(base * 0.82) * 2 * n, note: tx("تقديري") });
     if (p.beds >= 3 && p.beds <= 5) plans.push({ label: tx("جناح أو غرفة عائلية"), total: Math.round(base * 1.3) * n, note: tx("تقديري · مو كل الفنادق فيها") });
@@ -482,9 +486,9 @@
         <div class="small">${h._dist != null ? `${h._dist < 1 ? Math.round(h._dist * 1000) + tx(" م") : h._dist.toFixed(1) + tx(" كم")} ${tx("عن")} ${esc(L(ctx.lm))}` : ""}</div>
         <div class="badges">${cheapest ? tx('<span class="badge cheap">الأرخص</span>') : ""}${h.breakfast ? tx('<span class="badge">فطور</span>') : ""}${h.free_cancel ? tx('<span class="badge">إلغاء مجاني</span>') : ""}${h.demo ? tx('<span class="badge">تجريبي</span>') : ""}</div>
         ${others.length ? `<div class="sites-mini">${others.map(r => `<span>${esc(r.site)} <b class="num">${sarShort(r.night)}</b></span>`).join("")}</div>` : ""}</div>
-      <div class="pricebox"><span class="small muted">${tx("أرخص موقع")}: <b>${esc(h.rates[0] ? h.rates[0].site : "")}</b></span>
-        <div class="price-big">${sar(h.night)}<small> ${tx("/ليلة")}</small></div><div class="price-sub">${tx("المجموع")} ${sar(h.night * ctx.nights * ctx.rooms)}</div>
-        <button type="button" class="btn btn-primary btn-sm" data-hopen="${esc(h.id)}">${tx("قارن المواقع")}</button></div></article>`;
+      <div class="pricebox"><span class="small muted">${h.rates[0] ? `${tx("أرخص موقع")}: <b>${esc(h.rates[0].site)}</b>` : isG(h) ? tx("يبدأ من (حسب قوقل)") : ""}</span>
+        <div class="price-big">${sar(h.night)}<small> ${tx("/ليلة")}</small></div><div class="price-sub">${tx("المجموع")} ${sar(h.night * ctx.nights * mult(h, ctx))}</div>
+        <button type="button" class="btn btn-primary btn-sm" data-hopen="${esc(h.id)}">${isG(h) && !h.checked ? tx("شوف السعر الفعلي") : tx("قارن المواقع")}</button></div></article>`;
   }
   function drawMap(list, cheapest) {
     const el = $("#h-map"); if (!el) return;
@@ -509,11 +513,13 @@
         ${h.image ? `<div class="himg" style="aspect-ratio:16/8"><img src="${esc(h.image)}" alt="" referrerpolicy="no-referrer" onerror="this.parentNode.classList.add('sadu-ph');this.remove()"></div>` : ""}
         ${h.images && h.images.length > 1 ? `<div class="gallery">${h.images.slice(1, 7).map(u => `<img src="${esc(u)}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.remove()">`).join("")}</div>` : ""}
         <section><h3 class="sec">${tx("أرخص موقع تحجز منه")}</h3><p class="small muted" style="margin:0 0 6px">${esc(fmtDay(ctx.checkin))} – ${esc(fmtDay(ctx.checkout))} · ${P(ctx.nights, "night")} · ${esc(partyLabel(ctx.party))}</p>
-          <div class="tbl-wrap"><table class="rates"><thead><tr><th>${tx("الموقع")}</th><th>${tx("لليلة")}</th><th>${tx("المجموع (")}${P(ctx.rooms, "room")})</th><th></th></tr></thead><tbody>
-          ${rates.map((r, i) => `<tr class="${i === 0 ? "best" : ""}"><td>${esc(r.site)}${i === 0 ? tx(' <span class="badge cheap">الأرخص</span>') : ""}</td><td class="num">${sar(r.night)}</td><td class="num">${sar(r.night * ctx.nights * ctx.rooms)}</td>
+          <div class="tbl-wrap"><table class="rates"><thead><tr><th>${tx("الموقع")}</th><th>${tx("لليلة")}</th><th>${isG(h) ? tx("المجموع") : `${tx("المجموع (")}${P(ctx.rooms, "room")})`}</th><th></th></tr></thead><tbody>
+          ${rates.map((r, i) => `<tr class="${i === 0 ? "best" : ""}"><td>${esc(r.site)}${i === 0 ? tx(' <span class="badge cheap">الأرخص</span>') : ""}</td><td class="num">${sar(r.night)}</td><td class="num">${sar(r.night * ctx.nights * mult(h, ctx))}</td>
             <td><a class="btn ${i === 0 ? "btn-primary" : "btn-ghost"} btn-sm" href="${esc(r.link || otaLink(r.site, h, ctx))}" target="_blank" rel="noopener">${tx("احجز")} ${ICON.out}</a></td></tr>`).join("")}</tbody></table></div>
           ${loadingRates ? tx('<p class="small muted">نحدّث الأسعار…</p>') : ""}
-          ${rates.length > 1 ? `<p class="small" style="margin:6px 0 0">${tx("الفرق بين أرخص وأغلى موقع")}: <b class="num">${sar((rates[rates.length - 1].night - rates[0].night) * ctx.nights * ctx.rooms)}</b> ${tx("على كامل الإقامة.")}</p>` : ""}</section>
+          ${!loadingRates && isG(h) && !rates.length ? `<p class="small muted">${tx("قوقل ما عرض أسعار مواقع لهالفندق بعددكم وتواريخكم. افتحه في قوقل للفنادق تحت.")}</p>` : ""}
+          ${h.listNight && rates[0] && rates[0].night > h.listNight * 1.1 ? `<p class="small" style="margin:6px 0 0">${tx("قوقل كان يعرض في القائمة")} <b class="num">${sar(h.listNight)}</b> ${tx("لليلة، وهذا أقل سعر عنده. السعر الفعلي لعددكم في المواقع فوق.")}</p>` : ""}
+          ${rates.length > 1 && rates[rates.length - 1].night > rates[0].night ? `<p class="small" style="margin:6px 0 0">${tx("الفرق بين أرخص وأغلى موقع")}: <b class="num">${sar((rates[rates.length - 1].night - rates[0].night) * ctx.nights * mult(h, ctx))}</b> ${tx("على كامل الإقامة.")}</p>` : ""}</section>
         <section><h3 class="sec">${tx("الغرف المناسبة لعددكم")}</h3><div class="plan">${plans.map(pl => `<div class="plan-opt ${pl.main ? "main" : ""}"><span><b>${esc(pl.label)}</b><br><span class="small muted">${esc(pl.note)}</span></span><b class="num">${sar(pl.total)}</b></div>`).join("")}</div>
           ${ctx.party.childAges.length ? `<p class="small muted" style="margin:6px 0 0">${tx("سياسة الأطفال (السكن المجاني أو السرير الإضافي) تختلف من فندق لفندق، تأكد منها في صفحة الحجز.")}</p>` : ""}</section>
         <section><h3 class="sec">${tx("شوفه في قوقل")}</h3><p class="small muted" style="margin:0 0 8px">${tx("قوقل ماب يعرض لك الفندق ومواقع الحجز وأسعارها مثل ما تعودت.")}</p>
@@ -533,10 +539,11 @@
           <a class="btn btn-ghost btn-sm" href="${esc(waLink(hotelShare(h, ctx, rates)))}" target="_blank" rel="noopener">${ICON.share} ${tx("واتساب")}</a>
           <button type="button" class="btn btn-ghost btn-sm" id="hd-card">${ICON.note} ${tx("بطاقة بصورة")}</button>
           <button type="button" class="btn btn-ghost btn-sm" data-place="${esc(ctx.city.id)}" data-date="${esc(ctx.checkin)}">${tx("الصلاة والمساجد القريبة")}</button></div>`);
-      $("#hd-card").addEventListener("click", () => D.showCard({ title: h.name, sub: `${L(ctx.city)} · ${P(ctx.nights, "night")}`, lines: [`${fmtDayLong(ctx.checkin)} – ${fmtDayLong(ctx.checkout)}`, `${tx("أرخص موقع")}: ${rates[0] ? rates[0].site : ""}`, partyLabel(ctx.party)], price: sar((rates[0] ? rates[0].night : h.night) * ctx.nights * ctx.rooms) }));
-      const watchBase = { kind: "hotel", label: `${h.name} · ${fmtDay(ctx.checkin)} (${P(ctx.nights, "night")})`, last: h.night, params: { id: h.id, checkin: ctx.checkin, checkout: ctx.checkout, per_room: ctx.perRoom } };
+      $("#hd-card").addEventListener("click", () => D.showCard({ title: h.name, sub: `${L(ctx.city)} · ${P(ctx.nights, "night")}`, lines: [`${fmtDayLong(ctx.checkin)} – ${fmtDayLong(ctx.checkout)}`, `${tx("أرخص موقع")}: ${rates[0] ? rates[0].site : ""}`, partyLabel(ctx.party)], price: sar((rates[0] ? rates[0].night : h.night) * ctx.nights * mult(h, ctx)) }));
+      const watchBase = { kind: "hotel", label: `${h.name} · ${fmtDay(ctx.checkin)} (${P(ctx.nights, "night")})`, last: h.night, params: Object.assign({ id: h.id, checkin: ctx.checkin, checkout: ctx.checkout, per_room: ctx.perRoom },
+        isG(h) ? { token: h.token, query: `${h.name} ${ctx.city.en}`, adults: ctx.party.adults, children: ctx.party.childAges.join(",") } : {}) };
       $("#hd-fav").addEventListener("click", async e => { const btn = e.currentTarget; btn.setAttribute("aria-pressed", await toggleFav({ id: "h:" + h.id + ctx.checkin, kind: "hotel", title: h.name, sub: `${L(ctx.city)} · ${fmtDay(ctx.checkin)} · ${P(ctx.nights, "night")}`, price: h.night, link: gMaps(h.name, ctx.city.en) })); });
-      $("#hd-trip").addEventListener("click", () => addToTrip({ type: "hotel", title: h.name, sub: `${L(ctx.city)} · ${fmtDay(ctx.checkin)} – ${fmtDay(ctx.checkout)} · ${P(ctx.rooms, "room")}`, price: (rates[0] ? rates[0].night : h.night) * ctx.nights * ctx.rooms, link: gMaps(h.name, ctx.city.en), date: ctx.checkin, city: ctx.city.id }));
+      $("#hd-trip").addEventListener("click", () => addToTrip({ type: "hotel", title: h.name, sub: `${L(ctx.city)} · ${fmtDay(ctx.checkin)} – ${fmtDay(ctx.checkout)} · ${P(ctx.rooms, "room")}`, price: (rates[0] ? rates[0].night : h.night) * ctx.nights * mult(h, ctx), link: gMaps(h.name, ctx.city.en), date: ctx.checkin, city: ctx.city.id }));
       $("#hd-watch").addEventListener("click", () => addWatch(Object.assign({ id: `w:h:${h.id}:${ctx.checkin}:${ctx.checkout}` }, watchBase)));
       $("#bk-save").addEventListener("click", () => addWatch(Object.assign({ id: `w:hb:${h.id}:${ctx.checkin}:${ctx.checkout}` }, watchBase, { label: tx("محجوز · ") + watchBase.label, booked: Math.round(I18N.toSAR(Number($("#bk-price").value))) || h.night, cancel_by: $("#bk-cancel").value || null })));
       $("#hd-hist").addEventListener("click", async () => { const hist = await api("history", { kind: "hotel", key: h.id, day: ctx.checkin, current: h.night }); openDrawer(historyView(`${h.name} · ${fmtDay(ctx.checkin)}`, hist, tx("سعر الليلة."))); });
@@ -545,12 +552,14 @@
     if (h.demo) return;
     try {
       const r = await api("hotels/rates", { id: h.id, token: h.token, name: h.name, query: `${h.name} ${ctx.city.en}`, checkin: ctx.checkin, checkout: ctx.checkout, adults: ctx.party.adults, children: ctx.party.childAges.join(","), rooms: ctx.rooms });
-      if (!$("#drawer").hidden && $("#drawer-title") && $("#drawer-title").textContent === h.name) { if (r.rates && r.rates.length) { h.rates = r.rates; h.night = r.rates[0].night; } render(h.rates, false); }
+      if (!$("#drawer").hidden && $("#drawer-title") && $("#drawer-title").textContent === h.name) { if (isG(h) && !h.checked) { h.checked = true; h.listNight = h.night; }
+        if (r.rates && r.rates.length) { h.rates = r.rates; h.night = r.rates[0].night; }
+        render(h.rates, false); if (isG(h)) drawHotelResults(); }
     } catch (e) { if (!$("#drawer").hidden) render(h.rates, false); }
   }
   function hotelShare(h, ctx, rates) {
     return [`${tx("فندق من دروب")} 🏨`, h.name, `${L(ctx.city)} · ${fmtDay(ctx.checkin)} – ${fmtDay(ctx.checkout)} (${P(ctx.nights, "night")})`,
-      `${tx("أرخص سعر")}: ${sar(rates[0] ? rates[0].night : h.night)} ${tx("لليلة في")} ${rates[0] ? rates[0].site : ""}`, `${tx("المجموع تقريباً")}: ${sar((rates[0] ? rates[0].night : h.night) * ctx.nights * ctx.rooms)}`,
+      `${tx("أرخص سعر")}: ${sar(rates[0] ? rates[0].night : h.night)} ${tx("لليلة في")} ${rates[0] ? rates[0].site : ""}`, `${tx("المجموع تقريباً")}: ${sar((rates[0] ? rates[0].night : h.night) * ctx.nights * mult(h, ctx))}`,
       gMaps(h.name, ctx.city.en)].join("\n");
   }
 })();

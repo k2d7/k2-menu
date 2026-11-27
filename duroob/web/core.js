@@ -418,8 +418,8 @@
     let res;
     const body = X.web ? { watches: S.watches, ntfy_topic: S.prefs.alertsOn ? S.prefs.ntfyTopic : "" } : {};
     try { res = await api("watch/check", null, body); } catch (e) { if (manual) toast(e.message); return null; }
-    if (X.web) save("watches");
     S.watches = res.watches; S.prefs.lastCheck = Date.now(); save("prefs");
+    if (X.web) save("watches");
     const alerts = res.results.filter(r => r.alert || r.dropped || r.below_target);
     for (const d of alerts) {
       const w = S.watches.find(x => x.id === d.id);

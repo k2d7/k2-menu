@@ -419,6 +419,11 @@ def serp_hotel_detail(key, token, query, chk_in, chk_out, adults, children_ages)
     return uniq
 
 
+def _al_code(leg):
+    fn = (leg.get("flight_number") or "").split(" ")
+    return fn[0] if fn and 2 <= len(fn[0]) <= 3 else leg.get("airline")
+
+
 def serp_flights(key, origin, destination, depart, ret, adults, children, infants, cls=1, stops=0):
     params = {
         "engine": "google_flights", "departure_id": origin, "arrival_id": destination,
@@ -443,9 +448,10 @@ def serp_flights(key, origin, destination, depart, ret, adults, children, infant
                 "origin_airport": (first.get("departure_airport") or {}).get("id"),
                 "destination_airport": (last.get("arrival_airport") or {}).get("id"),
                 "price": f.get("price"),
-                "airline": first.get("airline"),
+                "airline": _al_code(first),
+                "airline_name": first.get("airline"),
                 "airline_logo": first.get("airline_logo"),
-                "flight_number": first.get("flight_number"),
+                "flight_number": (first.get("flight_number") or "").split(" ")[-1],
                 "departure_at": ((first.get("departure_airport") or {}).get("time") or "").replace(" ", "T"),
                 "arrival_at": ((last.get("arrival_airport") or {}).get("time") or "").replace(" ", "T"),
                 "return_at": ret,

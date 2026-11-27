@@ -1035,5 +1035,12 @@ window.DUROOB_EN = {
 "أو جرب الإقلاع من مطار ثاني:": "Or try flying from another airport:",
 "وللأسعار المباشرة داخل دروب، حط مفتاح SerpApi المجاني (حوالي ٢٥٠ بحث بالشهر) من الإعدادات.": "For live prices inside Duroob, add a free SerpApi key (about 250 searches a month) in Settings.",
 "تذكرتين: ذهاب وعودة منفصلة": "Two tickets: separate outbound and return",
-"يوم قريب من تاريخك": "A day close to your date"
+"يوم قريب من تاريخك": "A day close to your date",
+"سعر قوقل لكل الأشخاص": "Google price for everyone",
+"قوقل يختار الغرف المناسبة لعددكم، وتشوف تفاصيلها في موقع الحجز": "Google picks rooms that fit your group; see the details on the booking site",
+"يبدأ من (حسب قوقل)": "From (Google's list price)",
+"شوف السعر الفعلي": "See the real price",
+"قوقل ما عرض أسعار مواقع لهالفندق بعددكم وتواريخكم. افتحه في قوقل للفنادق تحت.": "Google showed no booking-site prices for this hotel with your group and dates. Open it in Google Hotels below.",
+"قوقل كان يعرض في القائمة": "Google's list showed",
+"لليلة، وهذا أقل سعر عنده. السعر الفعلي لعددكم في المواقع فوق.": "a night, its lowest price. The real price for your group is in the sites above."
 };

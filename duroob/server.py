@@ -341,16 +341,22 @@ def api_hotels_search(q, body):
     kids = ages(q.get("children"))
     rooms = int(q.get("rooms", 1))
     per_room, rooms = room_query(adults, kids, rooms)
+    hotels = None
     if cfg.get("serp_key") and cfg.get("use_serp_hotels", True):
         query = q.get("near") or f"hotels in {c['en']}"
-        hotels = P.serp_hotels(cfg["serp_key"], query, chk_in, chk_out, adults, kids,
-                               free_cancel=q.get("free_cancel") == "1")
-    else:
+        try:
+            hotels = P.serp_hotels(cfg["serp_key"], query, chk_in, chk_out, adults, kids,
+                                   free_cancel=q.get("free_cancel") == "1")
+        except P.SourceError:
+            hotels = None  # monthly Google quota used up or Google busy: fall back to the free source
+    if not hotels:
         hotels = P.xo_search(c["id"], chk_in, chk_out, per_room, rooms)
-    for h in hotels:
-        record("hotel", h["id"], chk_in, h["night"])
-    if hotels:
-        record("hotel-city", c["id"], chk_in, min(h["night"] for h in hotels))
+    google = bool(hotels) and hotels[0].get("source") == "Google Hotels"
+    if not google:  # Google's list shows "from" prices; its real price is recorded when the hotel is opened
+        for h in hotels:
+            record("hotel", h["id"], chk_in, h["night"])
+        if hotels:
+            record("hotel-city", c["id"], chk_in, min(h["night"] for h in hotels))
     return {"hotels": hotels, "nights": nights_between(chk_in, chk_out), "per_room": per_room, "rooms": rooms,
             "source": hotels[0]["source"] if hotels else None}
 
@@ -359,9 +365,15 @@ def api_hotels_rates(q, body):
     cfg = load_config()
     adults = int(q.get("adults", 2))
     kids = ages(q.get("children"))
+    rates = None
     if q.get("token") and cfg.get("serp_key"):
-        rates = P.serp_hotel_detail(cfg["serp_key"], q["token"], q.get("query") or q.get("name", ""),
-                                    q["checkin"], q["checkout"], adults, kids)
+        try:
+            rates = P.serp_hotel_detail(cfg["serp_key"], q["token"], q.get("query") or q.get("name", ""),
+                                        q["checkin"], q["checkout"], adults, kids)
+        except P.SourceError:
+            rates = []
+        if not rates:
+            return {"rates": []}
     else:
         per_room, rooms = room_query(adults, kids, int(q.get("rooms", 1)))
         rates = P.xo_rates(q["id"], q["checkin"], q["checkout"], per_room, 1)
@@ -956,6 +968,16 @@ def api_watch_check(q, body):
                 price = min((x["price"] for x in t), default=None)
                 key, day = f"{p['origin']}-{p['destination']}{'-RT' if p.get('return') else ''}", p["depart"]
                 kind = "flight"
+            elif p.get("token"):
+                # Google Hotels watch: each check spends one of the ~250 monthly searches, so once a day is enough.
+                key, day, kind = p["id"], p["checkin"], "hotel"
+                if not cfg.get("serp_key") or time.time() - (w.get("checked") or 0) < 20 * 3600:
+                    out.append({"id": w["id"], "price": w.get("last"), "prev": w.get("last"), "skipped": True,
+                                "dropped": False, "below_target": False, "below_booked": False, "history": history(kind, key, day)})
+                    continue
+                r = P.serp_hotel_detail(cfg["serp_key"], p["token"], p.get("query", ""), p["checkin"], p["checkout"],
+                                        int(p.get("adults", 2)), ages(p.get("children")))
+                price = r[0]["night"] if r else None
             else:
                 r = P.xo_rates(p["id"], p["checkin"], p["checkout"], int(p.get("per_room", 2)), 1)
                 price = r[0]["night"] if r else None
