@@ -354,6 +354,8 @@
     const [y, m] = month.split("-").map(Number), first = new Date(y, m - 1, 1, 12), last = new Date(y, m, 0).getDate();
     const prices = Object.values(cells).map(c => c && c.price).filter(p => p != null).sort((a, b) => a - b);
     const min = prices[0], t = today();
+    // Badge only the first cheapest day: Google often gives several days the same lowest price.
+    const minDay = Object.keys(cells).sort().find(d => d.startsWith(month) && d >= t && cells[d] && cells[d].price === min);
     let html = [tx("أحد"), tx("إثنين"), tx("ثلاثاء"), tx("أربعاء"), tx("خميس"), tx("جمعة"), tx("سبت")].map(d => `<div class="cal-dow">${d}</div>`).join("");
     for (let i = 0; i < first.getDay(); i++) html += "<div></div>";
     for (let d = 1; d <= last; d++) {
@@ -362,7 +364,7 @@
       const lv = c && c.price != null ? levelOf(c.price, prices) : c && c.level ? { cheap: "l-cheap", average: "l-mid", high: "l-high" }[c.level] : "";
       const disabled = past || (opts.onlyDow != null && wd !== opts.onlyDow);
       const extra = opts.marker ? opts.marker(day) : "";
-      html += `<button type="button" class="cal-day ${lv} ${wd === 5 || wd === 6 ? "weekend" : ""} ${c && c.price === min && min != null ? "min" : ""} ${opts.sel === day ? "sel" : ""}" data-day="${day}" ${disabled ? "disabled" : ""}
+      html += `<button type="button" class="cal-day ${lv} ${wd === 5 || wd === 6 ? "weekend" : ""} ${min != null && day === minDay ? "min" : ""} ${opts.sel === day ? "sel" : ""}" data-day="${day}" ${disabled ? "disabled" : ""}
         title="${esc(ss.map(s => s.name + (s.note ? " — " + s.note : "")).join(" · "))}">
         <span class="d">${d}<span class="h">${esc(HD.format(dt))}</span></span>
         ${extra || (ss.length ? `<span class="season season-${ss[0].kind}"></span>` : "<span></span>")}

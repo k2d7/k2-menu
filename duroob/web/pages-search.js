@@ -97,14 +97,14 @@
         const res = await withLoad(tx("القافلة تمشي على أيام الشهر…"), () => Promise.all(q.origins.map(o => api("flights/calendar", { origin: o, destination: q.d, month: q.month, one_way: q.rt ? 0 : 1, nights: q.rt ? q.nights : "", direct: q.direct ? 1 : 0 }).then(r => [o, r]))));
         const days = {};
         for (const [o, r] of res) for (const [day, t] of Object.entries(r.days || {})) if (t && (!days[day] || t.price < days[day].price)) days[day] = Object.assign(t, { from: o });
-        F.cal = { kind: "month", days, month: q.month, demo: res.some(([, r]) => r.demo) }; F.tickets = [];
+        F.cal = { kind: "month", days, month: q.month, demo: res.some(([, r]) => r.demo), google: res.some(([, r]) => r.google) }; F.tickets = [];
         remember("flight", `${label} · ${fmtMonth(q.month)}`, q);
         drawFlightCal(root); $("#f-res").innerHTML = `<div class="panel empty"><b>${tx("اختر يوم من التقويم")}</b>${tx("يطلع لك كل الرحلات المتوفرة في ذاك اليوم.")}</div>`;
       } else {
         const res = await withLoad(tx("القافلة تلف على أشهر السنة…"), () => Promise.all(q.origins.map(o => api("flights/calendar", { origin: o, destination: q.d, year: 1, one_way: q.rt ? 0 : 1, nights: q.rt ? q.nights : "", direct: q.direct ? 1 : 0 }).then(r => [o, r]))));
         const months = {};
         for (const [o, r] of res) for (const [m, t] of Object.entries(r.months || {})) if (t && (!months[m] || t.price < months[m].price)) months[m] = Object.assign(t, { from: o });
-        F.cal = { kind: "year", months, demo: res.some(([, r]) => r.demo) }; F.tickets = [];
+        F.cal = { kind: "year", months, demo: res.some(([, r]) => r.demo), google: res.some(([, r]) => r.google) }; F.tickets = [];
         remember("flight", `${label} · ${tx("السنة كاملة")}`, q);
         drawFlightCal(root); $("#f-res").innerHTML = "";
       }
@@ -122,7 +122,7 @@
     const box = $("#f-cal"); if (!box) return;
     if (!F.cal) { box.innerHTML = ""; return; }
     const q = F.lastQ || {};
-    const note = `${F.cal.demo ? tx("أسعار تجريبية. ") : tx("أسعار محفوظة من عمليات بحث آخر أيام، وتتأكد منها لما تختار اليوم. ")}${tx("السعر لشخص بالغ")}${q.rt ? tx("، ذهاب وعودة") : ""}.`;
+    const note = `${F.cal.demo ? tx("أسعار تجريبية. ") : F.cal.google ? tx("الأسعار من قوقل فلايتس. ") : tx("أسعار محفوظة من عمليات بحث آخر أيام، وتتأكد منها لما تختار اليوم. ")}${tx("السعر لشخص بالغ")}${q.rt ? tx("، ذهاب وعودة") : ""}.`;
     if (F.cal.kind === "year" && !Object.values(F.cal.months).some(Boolean) && !F.cal.demo) { box.innerHTML = noPrices(q); bindNoPrices(box, root); return; }
     if (F.cal.kind === "year") {
       box.innerHTML = yearCalendar(Object.fromEntries(Object.entries(F.cal.months).map(([m, t]) => [m, t && { price: t.price, tag: t.departure_at ? fmtDay(t.departure_at.slice(0, 10)) + (F.compare ? tx(" · من ") + placeName(t.from) : "") : "" }])), note);

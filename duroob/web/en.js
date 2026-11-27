@@ -1046,5 +1046,6 @@ window.DUROOB_EN = {
 "تختار وقت رحلة العودة في صفحة الحجز.": "You pick the return flight time on the booking page.",
 "في الموقع، المفاتيح تنحفظ في متصفحك على هالجهاز بس، وتنرسل مع كل بحث، والسيرفر ما يحفظها. إذا فتحت دروب من جهاز ثاني، حطها فيه مرة وحدة.": "On the website, keys are saved in this browser on this device only and sent with each search; the server doesn't keep them. On another device, enter them there once.",
 "المفتاح شكله ناقص. انسخه كامل والصقه مرة ثانية.": "The key looks incomplete. Copy all of it and paste it again.",
-"ما قدرنا نستخدم المفتاح. تأكد إنك نسخته كامل.": "We couldn't use the key. Make sure you copied all of it."
+"ما قدرنا نستخدم المفتاح. تأكد إنك نسخته كامل.": "We couldn't use the key. Make sure you copied all of it.",
+"الأسعار من قوقل فلايتس. ": "Prices from Google Flights. "
 };

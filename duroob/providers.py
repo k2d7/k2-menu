@@ -9,6 +9,7 @@ Every function returns plain dicts that the web UI understands. Prices are in SA
 """
 from __future__ import annotations
 
+import datetime
 import json
 import threading
 import time
@@ -417,6 +418,46 @@ def serp_hotel_detail(key, token, query, chk_in, chk_out, adults, children_ages)
             seen.add(r["site"])
             uniq.append(r)
     return uniq
+
+
+def gflights_link(origin, destination, depart, ret=None):
+    q = f"Flights from {origin} to {destination} on {depart}" + (f" through {ret}" if ret else " one way")
+    return "https://www.google.com/travel/flights?q=" + urllib.parse.quote(q)
+
+
+def serp_calendar(key, origin, destination, start, end, one_way=True, nights=None, direct=False):
+    """Google Flights calendar: cheapest price for one adult on each day from start to end (one search, up to ~120 days)."""
+    params = {
+        "engine": "google_flights_calendar", "departure_id": origin, "arrival_id": destination,
+        "date_range_start": start, "date_range_end": end, "type": 2 if one_way else 1,
+        "currency": "SAR", "gl": "sa", "hl": "en",
+    }
+    if not one_way:
+        params["round_trip_days"] = nights or 7
+    if direct:
+        params["stops"] = 1
+    try:
+        data = _serp(key, params, ttl=12 * 3600)
+    except SourceError as e:
+        if "hasn't returned any results" in str(e):
+            return {}
+        raise
+    days = {}
+    for p in data.get("prices") or []:
+        day, price = p.get("outbound_date"), _num(p.get("price"))
+        if not day or not price:
+            continue
+        ret = p.get("return_date")
+        if not one_way and not ret:
+            ret = (datetime.date.fromisoformat(day) + datetime.timedelta(days=nights or 7)).isoformat()
+        days[day] = {
+            "source": "Google Flights", "cached": False, "google": True,
+            "origin": origin, "destination": destination, "origin_airport": origin, "destination_airport": destination,
+            "price": round(price), "low": bool(p.get("low_price")), "airline": None,
+            "departure_at": day, "return_at": None if one_way else ret, "transfers": None,
+            "link": gflights_link(origin, destination, day, None if one_way else ret),
+        }
+    return days
 
 
 def _al_code(leg):

@@ -225,7 +225,7 @@ def api_settings(q, body):
 
 
 def _marker(link, cfg):
-    if link and cfg.get("tp_marker") and "marker=" not in link:
+    if link and "aviasales" in link and cfg.get("tp_marker") and "marker=" not in link:
         link += ("&" if "?" in link else "?") + "marker=" + urllib.parse.quote(cfg["tp_marker"])
     return link
 
@@ -308,27 +308,64 @@ def api_flights_search(q, body):
     return {"tickets": tickets, "insights": insights, "no_cache": not tickets}
 
 
+def _google_month(cfg, o, d, month, one_way, nights, direct):
+    """One Google Flights calendar search for a month, when the free cache has nothing (Riyadh, for one)."""
+    y, m = map(int, month.split("-"))
+    start = max(dt.date(y, m, 1), dt.date.today())
+    end = dt.date(y, m, calendar.monthrange(y, m)[1])
+    if start > end or start > dt.date.today() + dt.timedelta(days=330):
+        return {}
+    try:
+        return P.serp_calendar(cfg["serp_key"], o, d, start.isoformat(), end.isoformat(), one_way, nights, direct)
+    except P.SourceError:
+        return {}
+
+
+def _google_year(cfg, o, d, one_way, nights, direct):
+    """Cheapest day of each coming month from Google Flights: three searches of 110 days each."""
+    today = dt.date.today()
+    days = {}
+    for i in range(3):
+        start, end = today + dt.timedelta(days=110 * i), today + dt.timedelta(days=min(110 * i + 109, 325))
+        try:
+            days.update(P.serp_calendar(cfg["serp_key"], o, d, start.isoformat(), end.isoformat(), one_way, nights, direct))
+        except P.SourceError:
+            break
+    months = {}
+    for day, t in days.items():
+        m = day[:7]
+        if m not in months or t["price"] < months[m]["price"]:
+            months[m] = t
+    return months
+
+
 def api_flights_calendar(q, body):
     cfg = load_config()
     o, d = q["origin"].upper(), q["destination"].upper()
     one_way = q.get("one_way", "1") == "1"
     direct = q.get("direct") == "1"
     key = f"{o}-{d}{'' if one_way else '-RT'}"
+    nights = int(q["nights"]) if q.get("nights") else None
     if q.get("year") == "1":
         res = P.tp_year_calendar(cfg.get("tp_token"), o, d, months_ahead(12), one_way, direct)
+        google = False
+        if not any(res.values()) and cfg.get("serp_key"):
+            res, google = _google_year(cfg, o, d, one_way, nights, direct), True
         out = {}
         for m, t in res.items():
             if t:
                 t["link"] = _marker(t["link"], cfg)
                 record("flight-month", key, m, t["price"])
             out[m] = t
-        return {"months": out}
-    nights = int(q["nights"]) if q.get("nights") else None
+        return {"months": out, "google": google and any(out.values())}
     days = P.tp_month_calendar(cfg.get("tp_token"), o, d, q["month"], one_way, direct, nights)
+    google = False
+    if not days and cfg.get("serp_key"):
+        days, google = _google_month(cfg, o, d, q["month"], one_way, nights, direct), True
     for day, t in days.items():
         t["link"] = _marker(t["link"], cfg)
         record("flight", key, day, t["price"])
-    return {"days": days}
+    return {"days": days, "google": google and bool(days)}
 
 
 def api_flights_anywhere(q, body):
@@ -964,8 +1001,12 @@ def api_watch_check(q, body):
             p = w.get("params") or {}
             price = None
             if w.get("kind") == "flight-month":
-                days = P.tp_month_calendar(cfg.get("tp_token"), p["origin"], p["destination"], p["month"],
-                                           p.get("one_way", "1") == "1", False, int(p["nights"]) if p.get("nights") else None)
+                ow, nn = p.get("one_way", "1") == "1", int(p["nights"]) if p.get("nights") else None
+                days = P.tp_month_calendar(cfg.get("tp_token"), p["origin"], p["destination"], p["month"], ow, False, nn)
+                # No free prices (Riyadh): Google's calendar, once a day to save the monthly searches.
+                if not days and cfg.get("serp_key") and time.time() - (w.get("g_checked") or 0) >= 20 * 3600:
+                    days = _google_month(cfg, p["origin"], p["destination"], p["month"], ow, nn, False)
+                    w["g_checked"] = int(time.time())
                 best = min(days.items(), key=lambda kv: kv[1]["price"]) if days else None
                 price = best[1]["price"] if best else None
                 w["best_day"] = best[0] if best else None
