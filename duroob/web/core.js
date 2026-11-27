@@ -64,6 +64,14 @@
       const pj = r.ok ? await r.json() : {};
       if (pj.app === "duroob") { X.mode = "live"; X.web = !!pj.web; }
     } catch (e) { X.mode = "demo"; }
+    // Family link: "#k=..." carries the owner's keys; save them in this browser and drop them from the address.
+    if (X.web && location.hash.startsWith("#k=")) {
+      try {
+        const k = JSON.parse(atob(location.hash.slice(3).replace(/-/g, "+").replace(/_/g, "/")));
+        for (const kind of ["tp", "serp"]) if (/^[A-Za-z0-9_-]{8,128}$/.test(k[kind] || "")) { setWebKey(kind, k[kind]); X.joined = true; }
+      } catch (e) { /* broken link: carry on without keys */ }
+      history.replaceState(null, "", location.pathname + "#home");
+    }
     const load = async (f, def) => { try { return await (await fetch("data/" + f)).json(); } catch (e) { return def; } };
     [X.cities, X.climate, X.airports] = await Promise.all([load("cities.json", []), load("climate.json", {}), load("airports.json", {})]);
     load("names.json", {}).then(n => { X.names = n || {}; });
@@ -83,6 +91,7 @@
     bindNav();
     window.addEventListener("hashchange", route);
     route();
+    if (X.joined) toast(tx("أهلاً بك في دروب! جاهز بأسعار حقيقية ✓"), "good");
     if (X.mode === "live" && "serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(() => {});
     if (X.mode === "live") {
       setInterval(() => fetch("api/ping").catch(() => {}), 20000);
@@ -98,6 +107,12 @@
   // Website: price-source keys live in this browser only and go with each request; the server never stores them.
   function webKeys() { try { return JSON.parse(I18N.store.get("keys") || "{}") || {}; } catch (e) { return {}; } }
   function setWebKey(kind, val) { const k = webKeys(); if (val) k[kind] = val; else delete k[kind]; I18N.store.set("keys", JSON.stringify(k)); }
+  // Link to send to family: the site address, plus this browser's keys so it works for them straight away.
+  function familyLink() {
+    const k = webKeys(), base = location.origin + location.pathname;
+    if (!k.tp && !k.serp) return base;
+    return base + "#k=" + btoa(JSON.stringify({ tp: k.tp, serp: k.serp })).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+  }
   async function api(path, params, body) {
     const sp = Object.fromEntries(Object.entries(params || {}).filter(([, v]) => v !== undefined && v !== null && v !== "").map(([k, v]) => [k, String(v)]));
     if (X.mode === "demo") return window.DuroobDemo.call(path, sp, body);
@@ -549,7 +564,7 @@
     waLink, hero, party, partyLabel, partyParams, travelersField, bindTravelers, placeField, bindPlace, codeOf, placeName, cityByIata, countryOfCode,
     cityField, bindCity, climateOf, feel, visaOf, visaCheckLink, dailyCost, infoStrip, seasons, seasonsOn, baggage, applySeasons, applyTheme, levelOf,
     monthCalendar, yearCalendar, legend, bindCalNav, isFav, toggleFav, addWatch, remember, autoCheckWatches, addToTrip, gFlights, gMaps, gHotels, otaLink,
-    VERDICT, sparkline, historyView, groupPrice, perGroup, go, HM, HD, actionsDrawer, more, setAutoRun, takeAutoRun, placeDrawer, showCard, webKeys, setWebKey,
+    VERDICT, sparkline, historyView, groupPrice, perGroup, go, HM, HD, actionsDrawer, more, setAutoRun, takeAutoRun, placeDrawer, showCard, webKeys, setWebKey, familyLink,
     page(name, fn) { PAGES[name] = fn; },
     onLeave(fn) { cleanup.push(fn); },
     start() { boot().catch(e => { $("#view").innerHTML = errorBox(e); }); }

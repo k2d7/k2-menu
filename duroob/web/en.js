@@ -1056,5 +1056,15 @@ window.DUROOB_EN = {
 "أسعار من قوقل فلايتس ومن المصدر المجاني، وتقديرية. ": "Prices from Google Flights and the free source; estimates. ",
 "الطيران من قوقل فلايتس، والفندق أرخص سعر من أشهر ستة فنادق، والمصروف تقديري. أسعار الأطفال تقديرية.": "Flights from Google Flights; the hotel is the cheapest of six popular hotels; spending is an estimate. Children's fares are estimates.",
 "انسخ المفتاح المحفوظ": "Copy the saved key",
-"انسخ ✓ الصقه في Render": "Copied ✓ Paste it in Render"
+"انسخ ✓ الصقه في Render": "Copied ✓ Paste it in Render",
+"أهلاً بك في دروب! جاهز بأسعار حقيقية ✓": "Welcome to Duroob! Ready with real prices ✓",
+"أرسل دروب لأهلك": "Send Duroob to your family",
+"الرابط فيه مفاتيحك، فأول ما يفتحونه يشتغل معهم بأسعار حقيقية بدون ما يحطون شي. أرسله لأهلك بس، لأن بحوثهم تنحسب من رصيدك.": "The link carries your keys, so it works for them with real prices as soon as they open it. Send it to family only, since their searches use your credit.",
+"أرسل لهم رابط دروب. وإذا حطيت مفاتيحك تحت، الرابط يوصلهم جاهز بالمفاتيح.": "Send them Duroob's link. If you add your keys below, the link reaches them ready with the keys.",
+"هذا دروب، يدوّر لك أرخص طيران وفنادق 🐪": "This is Duroob: it finds the cheapest flights and hotels 🐪",
+"افتحه من سفاري وثبّته على الشاشة الرئيسية.": "Open it in your browser and add it to your home screen.",
+"أرسل بالواتساب": "Send on WhatsApp",
+"انسخ الرابط": "Copy link",
+"انسخ ✓ أرسله لأهلك": "Copied ✓ Send it to your family",
+"انسخ الرابط:": "Copy the link:"
 };

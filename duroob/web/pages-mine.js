@@ -287,6 +287,10 @@
           <div class="field"><label for="s-home">${tx("مدينتك (مطار الإقلاع المعتاد)")}</label><select class="input" id="s-home">${META.homeAirports.map(a => `<option value="${a.code}" ${a.code === (st.home || "RUH") ? "selected" : ""}>${a.name} (${a.code})</option>`).join("")}</select></div>
           <div class="field"><span class="lbl">${tx("المظهر")}</span>${seg("theme", [["", tx("حسب الجهاز")], ["light", tx("نهار")], ["dark", tx("ليل")]], S.prefs.theme || "")}</div></div>
         <p class="small muted" style="margin:0">${I18N.FX_LIVE ? tx("أسعار الصرف تتحدث من الإنترنت مرتين باليوم.") : tx("أسعار صرف تقريبية (ما قدرنا نحدّثها الحين).")}</p></section>
+      ${X.web ? `<section class="panel panel-pad" style="display:grid;gap:10px"><h2 class="sec" style="margin:0">${tx("أرسل دروب لأهلك")}</h2>
+        <p class="small muted" style="margin:0">${D.webKeys().tp || D.webKeys().serp ? tx("الرابط فيه مفاتيحك، فأول ما يفتحونه يشتغل معهم بأسعار حقيقية بدون ما يحطون شي. أرسله لأهلك بس، لأن بحوثهم تنحسب من رصيدك.") : tx("أرسل لهم رابط دروب. وإذا حطيت مفاتيحك تحت، الرابط يوصلهم جاهز بالمفاتيح.")}</p>
+        <div class="row"><a class="btn btn-primary btn-sm" target="_blank" rel="noopener" href="${esc(waLink(tx("هذا دروب، يدوّر لك أرخص طيران وفنادق 🐪") + "\n" + D.familyLink() + "\n" + tx("افتحه من سفاري وثبّته على الشاشة الرئيسية.")))}">${ICON.share} ${tx("أرسل بالواتساب")}</a>
+          <button type="button" class="btn btn-ghost btn-sm" id="s-flink">${tx("انسخ الرابط")}</button></div></section>` : ""}
       <section class="panel panel-pad" style="display:grid;gap:10px"><h2 class="sec" style="margin:0">${tx("ثبّت دروب كتطبيق")}</h2>
         <p class="small muted" style="margin:0">${tx("بدون متجر وبدون رسوم: يصير له أيقونة على شاشتك ويفتح مثل التطبيق.")}</p>
         <div class="row"><button type="button" class="btn btn-primary btn-sm" id="s-install" ${D.installPrompt ? "" : "hidden"}>${tx("ثبّت الحين")}</button></div>
@@ -331,6 +335,7 @@
     const again = () => D.go("#setup");
     root.addEventListener("click", async e => {
       const b = e.target.closest("button"); if (!b) return;
+      if (b.id === "s-flink") { try { await navigator.clipboard.writeText(D.familyLink()); toast(tx("انسخ ✓ أرسله لأهلك"), "good"); } catch (err) { prompt(tx("انسخ الرابط:"), D.familyLink()); } }
       if (b.dataset.copykey) {
         const v = D.webKeys()[b.dataset.copykey] || "";
         try { await navigator.clipboard.writeText(v); toast(tx("انسخ ✓ الصقه في Render"), "good"); }
