@@ -7,26 +7,26 @@
   const $$ = (s, el = document) => Array.from(el.querySelectorAll(s));
   const esc = v => String(v == null ? "" : v).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
   const enc = encodeURIComponent;
-  const sar = n => n == null || isNaN(n) ? "—" : Math.round(n).toLocaleString("en-US") + " ر.س";
-  const sarShort = n => n == null ? "" : n >= 10000 ? (n / 1000).toFixed(n >= 100000 ? 0 : 1) + "k" : Math.round(n).toLocaleString("en-US");
+  const sar = n => I18N.money(n);
+  const sarShort = n => I18N.moneyShort(n);
   const iso = d => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
   const parse = s => { const [y, m, d] = s.slice(0, 10).split("-").map(Number); return new Date(y, m - 1, d || 1, 12); };
   const addDays = (s, n) => { const d = parse(s); d.setDate(d.getDate() + n); return iso(d); };
   const diffDays = (a, b) => Math.round((parse(b) - parse(a)) / 864e5);
   const today = () => iso(new Date());
-  const G = new Intl.DateTimeFormat("ar-SA-u-ca-gregory-nu-latn", { weekday: "short", day: "numeric", month: "short" });
-  const GL = new Intl.DateTimeFormat("ar-SA-u-ca-gregory-nu-latn", { weekday: "long", day: "numeric", month: "long" });
-  const GM = new Intl.DateTimeFormat("ar-SA-u-ca-gregory-nu-latn", { month: "long", year: "numeric" });
-  const GMs = new Intl.DateTimeFormat("ar-SA-u-ca-gregory-nu-latn", { month: "long" });
-  const HD = new Intl.DateTimeFormat("ar-SA-u-ca-islamic-umalqura-nu-latn", { day: "numeric" });
-  const HM = new Intl.DateTimeFormat("ar-SA-u-ca-islamic-umalqura-nu-latn", { month: "long", year: "numeric" });
+  const G = new Intl.DateTimeFormat(I18N.LOC_G, { weekday: "short", day: "numeric", month: "short" });
+  const GL = new Intl.DateTimeFormat(I18N.LOC_G, { weekday: "long", day: "numeric", month: "long" });
+  const GM = new Intl.DateTimeFormat(I18N.LOC_G, { month: "long", year: "numeric" });
+  const GMs = new Intl.DateTimeFormat(I18N.LOC_G, { month: "long" });
+  const HD = new Intl.DateTimeFormat(I18N.LOC_H, { day: "numeric" });
+  const HM = new Intl.DateTimeFormat(I18N.LOC_H, { month: "long", year: "numeric" });
   const fmtDay = s => s ? G.format(parse(s)) : "";
   const fmtDayLong = s => s ? GL.format(parse(s)) : "";
   const fmtMonth = m => GM.format(parse(m + "-01"));
   const monthName = m => GMs.format(parse(m + "-01"));
   const hhmm = s => s && s.length >= 16 ? s.slice(11, 16) : "";
-  const dur = m => { if (!m) return ""; const h = Math.floor(m / 60), mm = Math.round(m % 60); return h ? `${h}س ${mm ? mm + "د" : ""}`.trim() : `${mm}د`; };
-  const airline = c => META.airlines[c] || c || "شركة طيران";
+  const dur = m => { if (!m) return ""; const h = Math.floor(m / 60), mm = Math.round(m % 60); return h ? `${h}${tx("س")} ${mm ? mm + tx("د") : ""}`.trim() : `${mm}${tx("د")}`; };
+  const airline = c => META.airlines[c] || c || tx("شركة طيران");
   const months12 = () => { const t = new Date(), o = []; for (let i = 0; i < 12; i++) o.push(iso(new Date(t.getFullYear(), t.getMonth() + i, 1)).slice(0, 7)); return o; };
   const defaultMonth = () => months12()[new Date().getDate() > 20 ? 1 : 0];
   const uid = () => Math.random().toString(36).slice(2, 10);
@@ -67,6 +67,7 @@
     [X.cities, X.climate, X.airports] = await Promise.all([load("cities.json", []), load("climate.json", {}), load("airports.json", {})]);
     window.DuroobDemo.init(X.cities, X.airports);
     S.settings = await api("settings");
+    try { const fx = await api("fx"); I18N.setFx(fx.rates, fx.live); } catch (e) { /* keep built-in rates */ }
     for (const k of ["groups", "favorites", "watches", "history", "prefs", "seasons", "baggage", "trips", "holidays"]) {
       const v = (await api("store/" + k)).value;
       if (v != null) S[k] = v;
@@ -95,10 +96,10 @@
     const q = Object.keys(sp).length ? "?" + new URLSearchParams(sp).toString() : "";
     const opt = body !== undefined ? { method: "POST", headers: { "Content-Type": "application/json", "X-Duroob": "1" }, body: JSON.stringify(body) } : {};
     const r = await fetch("api/" + path + q, opt);
-    const data = await r.json().catch(() => ({ error: "رد غير مفهوم من البرنامج" }));
+    const data = await r.json().catch(() => ({ error: tx("رد غير مفهوم من البرنامج") }));
     if (!r.ok) {
       if (data.code === "no_tp" || data.code === "no_serp") { const d = window.DuroobDemo.call(path, sp, body); d.demo = true; d.reason = data.code; return d; }
-      const err = new Error(data.error || "صار خطأ"); err.code = data.code; throw err;
+      const err = new Error(data.error || tx("صار خطأ")); err.code = data.code; throw err;
     }
     return data;
   }
@@ -108,16 +109,16 @@
   let loaderTimer = null;
   function loading(on, text) {
     const el = $("#loader"); clearTimeout(loaderTimer);
-    if (on) { $("#loader-text").textContent = text || "القافلة تدوّر لك على الأسعار…"; loaderTimer = setTimeout(() => { el.hidden = false; }, 250); }
+    if (on) { $("#loader-text").textContent = text || tx("القافلة تدوّر لك على الأسعار…"); loaderTimer = setTimeout(() => { el.hidden = false; }, 250); }
     else el.hidden = true;
   }
   async function withLoad(text, fn) { loading(true, text); try { return await fn(); } finally { loading(false); } }
   function toast(msg, kind) { const t = document.createElement("div"); t.className = "toast " + (kind || ""); t.textContent = msg; $("#toasts").appendChild(t); setTimeout(() => t.remove(), 4200); }
-  const errorBox = e => `<div class="panel empty"><b>ما ضبط</b>${esc(e.message || e)}</div>`;
+  const errorBox = e => `<div class="panel empty"><b>${tx("ما ضبط")}</b>${esc(e.message || e)}</div>`;
   function notice() {
     const el = $("#notice"); let html = "";
-    if (X.mode === "demo") html = "<b>نسخة تجربة.</b> كل الأسعار هنا تجريبية للعرض فقط. الأسعار الحقيقية تشتغل في نسخة الكمبيوتر.";
-    else if (!S.settings.has_tp) html = `<b>الطيران يعرض أسعار تجريبية</b> لين تحط مفتاح Travelpayouts المجاني. الفنادق أسعارها حقيقية. <a href="#setup">حط المفتاح</a>`;
+    if (X.mode === "demo") html = tx("<b>نسخة تجربة.</b> كل الأسعار هنا تجريبية للعرض فقط. الأسعار الحقيقية تشتغل في نسخة الكمبيوتر.");
+    else if (!S.settings.has_tp) html = `<b>${tx("الطيران يعرض أسعار تجريبية")}</b> ${tx("لين تحط مفتاح Travelpayouts المجاني. الفنادق أسعارها حقيقية.")} <a href="#setup">${tx("حط المفتاح")}</a>`;
     el.innerHTML = html ? `<div class="wrap">${html}</div>` : ""; el.hidden = !html;
   }
   function openDrawer(html) { $("#drawer-body").innerHTML = html; $("#drawer").hidden = false; document.body.style.overflow = "hidden"; $(".drawer-x").focus(); }
@@ -142,23 +143,23 @@
   const year = new Date().getFullYear();
   const ageOf = p => Math.max(0, year - p.by);
   const kindOf = a => a >= 12 ? "adult" : a >= 2 ? "child" : "infant";
-  const KIND = { adult: "بالغ", child: "طفل", infant: "رضيع" };
+  const KIND = { adult: tx("بالغ"), child: tx("طفل"), infant: tx("رضيع") };
   function party(people) {
     const ps = people || S.prefs.people || [];
     const ages = ps.map(ageOf), kids = ages.filter(a => a < 12);
     const adults = ages.filter(a => a >= 12).length || 1;
     return { adults, children: kids.filter(a => a >= 2).length, infants: kids.filter(a => a < 2).length, childAges: kids, beds: adults + kids.filter(a => a >= 2).length, total: ps.length || 1,
-      names: ps.map((p, i) => p.name || (kindOf(ageOf(p)) === "adult" ? "مسافر " + (i + 1) : KIND[kindOf(ageOf(p))] + " " + (i + 1))) };
+      names: ps.map((p, i) => p.name || (kindOf(ageOf(p)) === "adult" ? tx("مسافر ") + (i + 1) : KIND[kindOf(ageOf(p))] + " " + (i + 1))) };
   }
   function partyLabel(p) {
-    const bits = [`${p.adults} ${p.adults >= 2 ? "بالغين" : "بالغ"}`];
-    if (p.children) bits.push(`${p.children} ${p.children > 1 ? "أطفال" : "طفل"}`);
-    if (p.infants) bits.push(`${p.infants} ${p.infants > 1 ? "رضّع" : "رضيع"}`);
+    const bits = [P(p.adults, "adult")];
+    if (p.children) bits.push(P(p.children, "child"));
+    if (p.infants) bits.push(P(p.infants, "infant"));
     return bits.join(" · ");
   }
   const partyParams = () => { const p = party(); return { adults: p.adults, children: p.children, infants: p.infants }; };
   function travelersField(id) {
-    return `<div class="field" id="${id}"><label>المسافرون</label>
+    return `<div class="field" id="${id}"><label>${tx("المسافرون")}</label>
       <button type="button" class="btn trav-btn" data-trav aria-expanded="false"><span data-trav-label>${esc(partyLabel(party()))}</span>${ICON.user}</button>
       <div class="trav-pop" hidden></div></div>`;
   }
@@ -167,15 +168,15 @@
     const draw = () => {
       const ps = S.prefs.people;
       pop.innerHTML = `
-        <div class="row" style="justify-content:space-between;align-items:center"><b>مين بيسافر؟</b><span class="small muted">العمر يتحدث تلقائياً كل سنة</span></div>
-        ${ps.map((p, i) => `<div class="person"><input class="input" data-name="${i}" placeholder="الاسم (اختياري)" value="${esc(p.name || "")}" aria-label="الاسم">
-          <input class="input num" type="number" min="0" max="110" data-age="${i}" value="${ageOf(p)}" aria-label="العمر">
-          <span class="row" style="gap:6px;flex-wrap:nowrap;align-items:center"><span class="tag">${KIND[kindOf(ageOf(p))]}</span><button type="button" class="icon-btn" data-del="${i}" aria-label="حذف">✕</button></span></div>`).join("")}
-        <div class="chip-set"><button type="button" class="chip" data-add="30">+ بالغ</button><button type="button" class="chip" data-add="8">+ طفل</button><button type="button" class="chip" data-add="1">+ رضيع</button></div>
-        <hr class="sep"><div class="lbl">مجموعات محفوظة</div>
-        <div class="chip-set">${(S.groups || []).map((g, i) => `<button type="button" class="chip" data-group="${i}">${esc(g.name)} (${g.people.length})</button>`).join("") || '<span class="small muted">ما فيه مجموعات للحين</span>'}</div>
-        <div class="row"><input class="input grow" id="${id}-gname" placeholder="اسم المجموعة، مثل: العائلة"><button type="button" class="btn btn-ghost btn-sm" data-savegroup>احفظ المجموعة</button></div>
-        <div class="row" style="justify-content:flex-end"><button type="button" class="btn btn-primary btn-sm" data-done>تم</button></div>`;
+        <div class="row" style="justify-content:space-between;align-items:center"><b>${tx("مين بيسافر؟")}</b><span class="small muted">${tx("العمر يتحدث تلقائياً كل سنة")}</span></div>
+        ${ps.map((p, i) => `<div class="person"><input class="input" data-name="${i}" placeholder="${tx("الاسم (اختياري)")}" value="${esc(p.name || "")}" aria-label="${tx("الاسم")}">
+          <input class="input num" type="number" min="0" max="110" data-age="${i}" value="${ageOf(p)}" aria-label="${tx("العمر")}">
+          <span class="row" style="gap:6px;flex-wrap:nowrap;align-items:center"><span class="tag">${KIND[kindOf(ageOf(p))]}</span><button type="button" class="icon-btn" data-del="${i}" aria-label="${tx("حذف")}">✕</button></span></div>`).join("")}
+        <div class="chip-set"><button type="button" class="chip" data-add="30">${tx("+ بالغ")}</button><button type="button" class="chip" data-add="8">${tx("+ طفل")}</button><button type="button" class="chip" data-add="1">${tx("+ رضيع")}</button></div>
+        <hr class="sep"><div class="lbl">${tx("مجموعات محفوظة")}</div>
+        <div class="chip-set">${(S.groups || []).map((g, i) => `<button type="button" class="chip" data-group="${i}">${esc(g.name)} (${g.people.length})</button>`).join("") || tx('<span class="small muted">ما فيه مجموعات للحين</span>')}</div>
+        <div class="row"><input class="input grow" id="${id}-gname" placeholder="${tx("اسم المجموعة، مثل: العائلة")}"><button type="button" class="btn btn-ghost btn-sm" data-savegroup>${tx("احفظ المجموعة")}</button></div>
+        <div class="row" style="justify-content:flex-end"><button type="button" class="btn btn-primary btn-sm" data-done>${tx("تم")}</button></div>`;
     };
     const changed = () => { $("[data-trav-label]", box).textContent = partyLabel(party()); save("prefs"); onChange && onChange(); };
     btn.addEventListener("click", () => { pop.hidden = !pop.hidden; btn.setAttribute("aria-expanded", !pop.hidden); if (!pop.hidden) draw(); });
@@ -190,9 +191,9 @@
       else if (t.dataset.del != null) { if (S.prefs.people.length > 1) { S.prefs.people.splice(Number(t.dataset.del), 1); draw(); changed(); } }
       else if (t.dataset.group != null) { S.prefs.people = JSON.parse(JSON.stringify(S.groups[t.dataset.group].people)); draw(); changed(); }
       else if (t.hasAttribute("data-savegroup")) {
-        const name = $("#" + id + "-gname").value.trim() || "مجموعتي";
+        const name = $("#" + id + "-gname").value.trim() || tx("مجموعتي");
         S.groups = (S.groups || []).filter(g => g.name !== name).concat([{ name, people: JSON.parse(JSON.stringify(S.prefs.people)) }]);
-        await save("groups"); draw(); toast("انحفظت المجموعة: " + name);
+        await save("groups"); draw(); toast(tx("انحفظت المجموعة: ") + name);
       } else if (t.hasAttribute("data-done")) { pop.hidden = true; btn.setAttribute("aria-expanded", "false"); }
     });
     document.addEventListener("click", e => { if (!box.isConnected) return; if (!box.contains(e.target)) { pop.hidden = true; btn.setAttribute("aria-expanded", "false"); } });
@@ -200,7 +201,7 @@
 
   // ------------------------------------------------------------------ place inputs
   function placeField(id, label, val, ph) {
-    return `<div class="field"><label for="${id}">${label}</label><input class="input" id="${id}" autocomplete="off" placeholder="${ph || "مدينة أو مطار"}" value="${esc(val && val.code ? val.name + " (" + val.code + ")" : "")}" data-code="${esc(val ? val.code || "" : "")}" data-name="${esc(val ? val.name || "" : "")}"><div class="ac-list" hidden></div></div>`;
+    return `<div class="field"><label for="${id}">${label}</label><input class="input" id="${id}" autocomplete="off" placeholder="${ph || tx("مدينة أو مطار")}" value="${esc(val && val.code ? (placeName(val.code) !== val.code ? placeName(val.code) : val.name) + " (" + val.code + ")" : "")}" data-code="${esc(val ? val.code || "" : "")}" data-name="${esc(val && val.code ? (placeName(val.code) !== val.code ? placeName(val.code) : val.name) : "")}"><div class="ac-list" hidden></div></div>`;
   }
   function bindPlace(root, id, onPick) {
     const inp = $("#" + id, root), list = inp.nextElementSibling;
@@ -210,7 +211,7 @@
     inp.addEventListener("input", () => {
       inp.dataset.code = ""; clearTimeout(timer);
       const t = inp.value.trim(); if (t.length < 2) { list.hidden = true; return; }
-      timer = setTimeout(async () => { try { items = (await api("places", { term: t })).filter(p => p.code).slice(0, 8); on = -1; draw(); } catch (e) { list.hidden = true; } }, 220);
+      timer = setTimeout(async () => { try { items = (await api("places", { term: t, locale: I18N.LANG })).filter(p => p.code).slice(0, 8); on = -1; draw(); } catch (e) { list.hidden = true; } }, 220);
     });
     inp.addEventListener("keydown", e => {
       if (list.hidden) return;
@@ -223,21 +224,21 @@
   }
   const codeOf = el => { const c = el.dataset.code || (el.value.match(/\(([A-Z]{3})\)/) || [])[1] || (/^[A-Za-z]{3}$/.test(el.value.trim()) ? el.value.trim().toUpperCase() : ""); return c.toUpperCase(); };
   function placeName(code) {
-    const c = X.cities.find(x => x.iata === code); if (c) return c.ar;
-    const a = X.airports[code]; if (a) return a.ar;
+    const c = X.cities.find(x => x.iata === code); if (c) return L(c);
+    const a = X.airports[code]; if (a) return L(a);
     const h = META.homeAirports.find(x => x.code === code); return h ? h.name : code;
   }
   const cityByIata = code => X.cities.find(x => x.iata === code) || null;
   const countryOfCode = code => { const c = cityByIata(code); if (c) return c.country; const a = X.airports[code]; return a ? a.cc : null; };
   function cityField(id, label, cid) {
     const c = X.cities.find(x => x.id === cid);
-    return `<div class="field"><label for="${id}">${label}</label><input class="input" id="${id}" autocomplete="off" placeholder="اكتب اسم المدينة" value="${esc(c ? c.ar : "")}" data-city="${esc(c ? c.id : "")}"><div class="ac-list" hidden></div></div>`;
+    return `<div class="field"><label for="${id}">${label}</label><input class="input" id="${id}" autocomplete="off" placeholder="${tx("اكتب اسم المدينة")}" value="${esc(c ? c.ar : "")}" data-city="${esc(c ? c.id : "")}"><div class="ac-list" hidden></div></div>`;
   }
   function bindCity(root, id, onPick) {
     const inp = $("#" + id, root), list = inp.nextElementSibling;
     let items = [], on = -1;
-    const pick = c => { inp.value = c.ar; inp.dataset.city = c.id; list.hidden = true; onPick && onPick(c); };
-    const draw = () => { list.innerHTML = items.map((c, i) => `<div class="ac-item ${i === on ? "on" : ""}" data-i="${i}"><span>${esc(c.ar)} <span class="small muted">${esc(c.en)}</span></span><span class="code">${esc(c.country)}</span></div>`).join(""); list.hidden = !items.length; };
+    const pick = c => { inp.value = L(c); inp.dataset.city = c.id; list.hidden = true; onPick && onPick(c); };
+    const draw = () => { list.innerHTML = items.map((c, i) => `<div class="ac-item ${i === on ? "on" : ""}" data-i="${i}"><span>${esc(L(c))} <span class="small muted">${esc(I18N.LANG === "en" ? c.ar : c.en)}</span></span><span class="code">${esc(c.country)}</span></div>`).join(""); list.hidden = !items.length; };
     const filter = () => { const t = inp.value.trim().toLowerCase().replace(/^ال/, ""); items = X.cities.filter(c => !t || c.ar.replace(/^ال/, "").includes(t) || c.ar.includes(t) || c.en.toLowerCase().includes(t)).slice(0, 10); on = -1; draw(); };
     inp.addEventListener("input", () => { inp.dataset.city = ""; filter(); });
     inp.addEventListener("focus", filter);
@@ -256,23 +257,23 @@
     const c = X.climate[cityId]; if (!c) return null;
     const [hi, lo, rain] = c[Number(month.slice(5, 7)) - 1]; return { hi, lo, rain };
   }
-  function feel(cl) { if (!cl) return ""; const t = (cl.hi + cl.lo) / 2; return t < 8 ? "بارد جداً" : t < 15 ? "بارد" : t < 22 ? "معتدل" : t < 29 ? "دافي" : t < 34 ? "حار" : "حار جداً"; }
+  function feel(cl) { if (!cl) return ""; const t = (cl.hi + cl.lo) / 2; return t < 8 ? tx("بارد جداً") : t < 15 ? tx("بارد") : t < 22 ? tx("معتدل") : t < 29 ? tx("دافي") : t < 34 ? tx("حار") : tx("حار جداً"); }
   function visaOf(cc) {
     if (!cc || cc === "SA") return null;
-    const v = META.visa.countries[cc]; if (!v) return { label: "غير معروف", cls: "visa-mid", sure: false };
+    const v = META.visa.countries[cc]; if (!v) return { label: tx("غير معروف"), cls: "visa-mid", sure: false };
     const [label, ease] = META.visa.kinds[v[0]];
     return { kind: v[0], label, cls: "visa-" + ease, ease, sure: v[1] };
   }
-  const visaCheckLink = cc => "https://www.google.com/search?q=" + enc(`متطلبات دخول ${META.visa.countryNames[cc] || cc} للمواطنين السعوديين`);
+  const visaCheckLink = cc => "https://www.google.com/search?q=" + enc(`${tx("متطلبات دخول")} ${META.visa.countryNames[cc] || cc} ${tx("للمواطنين السعوديين")}`);
   const dailyCost = cc => META.dailyCost[cc] || null;
   function infoStrip(cityOrCode, month, nights, people) {
     const c = typeof cityOrCode === "string" ? (cityByIata(cityOrCode) || X.cities.find(x => x.id === cityOrCode)) : cityOrCode;
     if (!c) return "";
     const cl = climateOf(c.id, month), v = visaOf(c.country), dc = dailyCost(c.country);
-    return `<section class="panel info-strip" aria-label="عن الوجهة">
-      <div class="info"><span class="lbl">${ICON.sun} الجو في ${esc(monthName(month))}</span>${cl ? `<b>${esc(feel(cl))} · ${cl.lo}° – ${cl.hi}°</b><span class="small muted">${cl.rain >= 8 ? "أمطار كثيرة" : cl.rain >= 3 ? "أمطار أحياناً" : "قليل المطر"} (${cl.rain} أيام بالشهر تقريباً)</span>` : '<span class="small muted">ما عندنا بيانات</span>'}</div>
-      ${v ? `<div class="info"><span class="lbl">${ICON.pass} التأشيرة للجواز السعودي</span><b class="${v.cls}">${esc(v.label)}</b><span class="small muted">${v.sure ? "" : "غير مؤكد · "}تحديث ${esc(META.visa.updated)} · <a href="${esc(visaCheckLink(c.country))}" target="_blank" rel="noopener">تأكد قبل السفر</a></span></div>` : ""}
-      ${dc ? `<div class="info"><span class="lbl">${ICON.wallet} مصروف يومي تقريبي</span><b>${sar(dc)} للشخص</b><span class="small muted">أكل ومواصلات${nights ? ` · ${nights} أيام لـ${people || 1}: ${sar(dc * nights * (people || 1))}` : ""} (تقديري)</span></div>` : ""}
+    return `<section class="panel info-strip" aria-label="${tx("عن الوجهة")}">
+      <div class="info"><span class="lbl">${ICON.sun} ${tx("الجو في")} ${esc(monthName(month))}</span>${cl ? `<b>${esc(feel(cl))} · ${cl.lo}° – ${cl.hi}°</b><span class="small muted">${cl.rain >= 8 ? tx("أمطار كثيرة") : cl.rain >= 3 ? tx("أمطار أحياناً") : tx("قليل المطر")} (${P(cl.rain, "day")} ${tx("بالشهر تقريباً")})</span>` : tx('<span class="small muted">ما عندنا بيانات</span>')}</div>
+      ${v ? `<div class="info"><span class="lbl">${ICON.pass} ${tx("التأشيرة للجواز السعودي")}</span><b class="${v.cls}">${esc(v.label)}</b><span class="small muted">${v.sure ? "" : tx("غير مؤكد · ")}${tx("تحديث")} ${esc(META.visa.updated)} · <a href="${esc(visaCheckLink(c.country))}" target="_blank" rel="noopener">${tx("تأكد قبل السفر")}</a></span></div>` : ""}
+      ${dc ? `<div class="info"><span class="lbl">${ICON.wallet} ${tx("مصروف يومي تقريبي")}</span><b>${sar(dc)} ${tx("للشخص")}</b><span class="small muted">${tx("أكل ومواصلات")}${nights ? ` · ${P(nights, "day")} ${tx("لـ")}${P(people || 1, "person")}: ${sar(dc * nights * (people || 1))}` : ""} ${tx("(تقديري)")}</span></div>` : ""}
     </section>`;
   }
 
@@ -287,7 +288,7 @@
     const [y, m] = month.split("-").map(Number), first = new Date(y, m - 1, 1, 12), last = new Date(y, m, 0).getDate();
     const prices = Object.values(cells).map(c => c && c.price).filter(p => p != null).sort((a, b) => a - b);
     const min = prices[0], t = today();
-    let html = ["أحد", "إثنين", "ثلاثاء", "أربعاء", "خميس", "جمعة", "سبت"].map(d => `<div class="cal-dow">${d}</div>`).join("");
+    let html = [tx("أحد"), tx("إثنين"), tx("ثلاثاء"), tx("أربعاء"), tx("خميس"), tx("جمعة"), tx("سبت")].map(d => `<div class="cal-dow">${d}</div>`).join("");
     for (let i = 0; i < first.getDay(); i++) html += "<div></div>";
     for (let d = 1; d <= last; d++) {
       const day = `${month}-${String(d).padStart(2, "0")}`, c = cells[day], dt = parse(day), wd = dt.getDay();
@@ -299,30 +300,30 @@
         title="${esc(ss.map(s => s.name + (s.note ? " — " + s.note : "")).join(" · "))}">
         <span class="d">${d}<span class="h">${esc(HD.format(dt))}</span></span>
         ${extra || (ss.length ? `<span class="season season-${ss[0].kind}"></span>` : "<span></span>")}
-        <span class="p ${c && c.price != null ? "" : "none"}">${past ? "" : c && c.price != null ? sarShort(c.price) + (c.tag ? ` <span class="small muted">${esc(c.tag)}</span>` : "") : c && c.level ? { cheap: "رخيص", average: "متوسط", high: "غالي" }[c.level] : c && c.label ? esc(c.label) : "—"}</span></button>`;
+        <span class="p ${c && c.price != null ? "" : "none"}">${past ? "" : c && c.price != null ? sarShort(c.price) + (c.tag ? ` <span class="small muted">${esc(c.tag)}</span>` : "") : c && c.level ? { cheap: tx("رخيص"), average: tx("متوسط"), high: tx("غالي") }[c.level] : c && c.label ? esc(c.label) : "—"}</span></button>`;
     }
     return `<div class="panel cal">
       <div class="cal-head"><div><div class="cal-title">${esc(fmtMonth(month))}</div><div class="cal-hijri">${esc(HM.format(first))} – ${esc(HM.format(new Date(y, m - 1, last, 12)))}</div></div>
-        ${opts.nav ? `<div class="row"><button type="button" class="btn btn-ghost btn-sm" data-cal-prev>‹ الشهر اللي قبل</button><button type="button" class="btn btn-ghost btn-sm" data-cal-next>الشهر الجاي ›</button></div>` : ""}</div>
+        ${opts.nav ? `<div class="row"><button type="button" class="btn btn-ghost btn-sm" data-cal-prev>‹ ${tx("الشهر اللي قبل")}</button><button type="button" class="btn btn-ghost btn-sm" data-cal-next>${tx("الشهر الجاي")} ›</button></div>` : ""}</div>
       <div class="cal-grid">${html}</div>${opts.legend || legend(opts.unit)}
       ${opts.note ? `<p class="small muted" style="margin:6px 0 0">${opts.note}</p>` : ""}</div>`;
   }
   function legend(unit) {
-    const kinds = [["season-ramadan", "رمضان"], ["season-hajj", "الحج"], ["season-holiday", "إجازة / عيد"], ["season-high", "موسم مزدحم"]];
-    return `<div class="legend"><span><i class="sw" style="background:var(--cheap-bg);border:1px solid var(--cheap)"></i>أرخص</span><span><i class="sw" style="background:var(--mid-bg)"></i>متوسط</span><span><i class="sw" style="background:var(--high-bg)"></i>أغلى</span>
-      ${kinds.map(([c, l]) => `<span><i class="sw ${c}"></i>${l}</span>`).join("")}<span>${unit || "الأسعار بالريال"}</span></div>`;
+    const kinds = [["season-ramadan", tx("رمضان")], ["season-hajj", tx("الحج")], ["season-holiday", tx("إجازة / عيد")], ["season-high", tx("موسم مزدحم")]];
+    return `<div class="legend"><span><i class="sw" style="background:var(--cheap-bg);border:1px solid var(--cheap)"></i>${tx("أرخص")}</span><span><i class="sw" style="background:var(--mid-bg)"></i>${tx("متوسط")}</span><span><i class="sw" style="background:var(--high-bg)"></i>${tx("أغلى")}</span>
+      ${kinds.map(([c, l]) => `<span><i class="sw ${c}"></i>${l}</span>`).join("")}<span>${unit || tx("الأسعار بالريال")}</span></div>`;
   }
   function yearCalendar(cells, note) {
     const ms = months12(), prices = ms.map(m => cells[m] && cells[m].price).filter(p => p != null).sort((a, b) => a - b);
     const min = prices[0], max = prices[prices.length - 1];
-    return `<div class="panel cal"><div class="cal-head"><div class="cal-title">السنة كاملة</div><span class="small muted">أرخص سعر بكل شهر · اضغط الشهر يفتح لك أيامه</span></div>
+    return `<div class="panel cal"><div class="cal-head"><div class="cal-title">${tx("السنة كاملة")}</div><span class="small muted">${tx("أرخص سعر بكل شهر · اضغط الشهر يفتح لك أيامه")}</span></div>
       <div class="year-grid">${ms.map(m => {
         const c = cells[m] || {}, ss = seasons().filter(s => s.from.slice(0, 7) <= m && s.to.slice(0, 7) >= m);
         const pct = c.price != null && max ? Math.max(8, Math.round(c.price / max * 100)) : 0;
         return `<button type="button" class="ycell ${levelOf(c.price, prices)} ${c.price === min && min != null ? "min" : ""}" data-month="${m}">
           <span class="m"><span>${esc(monthName(m))}</span><span class="small muted">${m.slice(0, 4)}</span></span>
-          <span class="p">${c.price != null ? sar(c.price) : "ما فيه بيانات"}</span><span class="bar"><i style="width:${pct}%"></i></span>
-          <span class="s">${esc([c.tag, ss.map(s => s.name).join("، ")].filter(Boolean).join(" · "))}</span></button>`;
+          <span class="p">${c.price != null ? sar(c.price) : tx("ما فيه بيانات")}</span><span class="bar"><i style="width:${pct}%"></i></span>
+          <span class="s">${esc([c.tag, ss.map(s => s.name).join(tx("، "))].filter(Boolean).join(" · "))}</span></button>`;
       }).join("")}</div>${legend()}${note ? `<p class="small muted" style="margin:6px 0 0">${note}</p>` : ""}</div>`;
   }
   function bindCalNav(box, current, go) {
@@ -337,13 +338,13 @@
   async function toggleFav(item) {
     if (isFav(item.id)) S.favorites = S.favorites.filter(f => f.id !== item.id);
     else S.favorites = [Object.assign({ saved: Date.now() }, item)].concat(S.favorites || []);
-    await save("favorites"); toast(isFav(item.id) ? "انضاف للمفضلة" : "انشال من المفضلة"); return isFav(item.id);
+    await save("favorites"); toast(isFav(item.id) ? tx("انضاف للمفضلة") : tx("انشال من المفضلة")); return isFav(item.id);
   }
   async function addWatch(w) {
     S.watches = (S.watches || []).filter(x => x.id !== w.id);
     S.watches.unshift(Object.assign({ created: Date.now() }, w));
     await save("watches");
-    toast("بنراقب السعر ونعلمك إذا نزل. تلقاها في «متابعاتي»", "good");
+    toast(tx("بنراقب السعر ونعلمك إذا نزل. تلقاها في «متابعاتي»"), "good");
   }
   async function remember(kind, label, params) {
     const key = kind + JSON.stringify(params);
@@ -351,7 +352,7 @@
     await save("history");
   }
   async function autoCheckWatches(manual) {
-    if (!S.watches || !S.watches.length) { if (manual) toast("ما عندك متابعات للحين"); return null; }
+    if (!S.watches || !S.watches.length) { if (manual) toast(tx("ما عندك متابعات للحين")); return null; }
     if (!manual && Date.now() - Number(S.prefs.lastCheck || 0) < 3 * 3600 * 1000) return null;
     let res;
     try { res = await api("watch/check", null, {}); } catch (e) { if (manual) toast(e.message); return null; }
@@ -359,23 +360,23 @@
     const alerts = res.results.filter(r => r.alert || r.dropped || r.below_target);
     for (const d of alerts) {
       const w = S.watches.find(x => x.id === d.id);
-      const msg = `${w ? w.label : ""}: ${d.alert || "نزل السعر إلى " + sar(d.price)}`;
+      const msg = `${w ? w.label : ""}: ${d.alert || tx("نزل السعر إلى ") + sar(d.price)}`;
       toast(msg, "good");
-      try { if ("Notification" in window && Notification.permission === "granted") new Notification("دروب", { body: msg }); } catch (e) { /* not available */ }
+      try { if ("Notification" in window && Notification.permission === "granted") new Notification(tx("دروب"), { body: msg }); } catch (e) { /* not available */ }
     }
-    if (manual && !alerts.length) toast("فحصت المتابعات، ما فيه نزول جديد");
+    if (manual && !alerts.length) toast(tx("فحصت المتابعات، ما فيه نزول جديد"));
     return res;
   }
   // Add an item (flight, hotel, plan) to a trip file; asks which file in the drawer.
   function addToTrip(item) {
     const trips = S.trips || [];
-    openDrawer(`<h2 id="drawer-title">أضف لملف رحلة</h2><p class="muted" style="margin:0">${esc(item.title)} · ${esc(item.sub || "")}</p>
-      <div class="file-items">${trips.map((t, i) => `<button type="button" class="file-item btn-ghost" style="cursor:pointer;text-align:start" data-ti="${i}"><span class="k">${ICON.scroll}</span><span><b>${esc(t.name)}</b><br><span class="small muted">${t.items.length} عناصر</span></span><span>أضف</span></button>`).join("")}</div>
-      <div class="row"><div class="field grow"><label for="nt-name">ملف رحلة جديد</label><input class="input" id="nt-name" placeholder="مثلاً: صيف إسطنبول مع العائلة"></div><button type="button" class="btn btn-primary" id="nt-add">أنشئ وأضف</button></div>`);
-    const add = async t => { t.items.push(Object.assign({ id: uid(), added: Date.now() }, item)); await save("trips"); closeDrawer(); toast(`انضاف لملف «${t.name}»`, "good"); };
+    openDrawer(`<h2 id="drawer-title">${tx("أضف لملف رحلة")}</h2><p class="muted" style="margin:0">${esc(item.title)} · ${esc(item.sub || "")}</p>
+      <div class="file-items">${trips.map((t, i) => `<button type="button" class="file-item btn-ghost" style="cursor:pointer;text-align:start" data-ti="${i}"><span class="k">${ICON.scroll}</span><span><b>${esc(t.name)}</b><br><span class="small muted">${P(t.items.length, "item")}</span></span><span>${tx("أضف")}</span></button>`).join("")}</div>
+      <div class="row"><div class="field grow"><label for="nt-name">${tx("ملف رحلة جديد")}</label><input class="input" id="nt-name" placeholder="${tx("مثلاً: صيف إسطنبول مع العائلة")}"></div><button type="button" class="btn btn-primary" id="nt-add">${tx("أنشئ وأضف")}</button></div>`);
+    const add = async t => { t.items.push(Object.assign({ id: uid(), added: Date.now() }, item)); await save("trips"); closeDrawer(); toast(`${tx("انضاف لملف «")}${t.name}»`, "good"); };
     $$("[data-ti]").forEach(b => b.addEventListener("click", () => add(S.trips[Number(b.dataset.ti)])));
     $("#nt-add").addEventListener("click", () => {
-      const name = $("#nt-name").value.trim() || "رحلتي";
+      const name = $("#nt-name").value.trim() || tx("رحلتي");
       const t = { id: uid(), name, created: Date.now(), items: [], members: party().names, expenses: [] };
       S.trips = [t].concat(S.trips || []); add(t);
     });
@@ -396,7 +397,7 @@
   }
 
   // ------------------------------------------------------------------ price history view
-  const VERDICT = { lowest: ["v-lowest", "أرخص سعر شفناه · احجز"], good: ["v-good", "أرخص من المعتاد · سعر زين"], normal: ["v-normal", "سعر عادي"], high: ["v-high", "أغلى من المعتاد · انتظر لو تقدر"], few: ["v-few", "بيانات قليلة للحين"] };
+  const VERDICT = { lowest: ["v-lowest", tx("أرخص سعر شفناه · احجز")], good: ["v-good", tx("أرخص من المعتاد · سعر زين")], normal: ["v-normal", tx("سعر عادي")], high: ["v-high", tx("أغلى من المعتاد · انتظر لو تقدر")], few: ["v-few", tx("بيانات قليلة للحين")] };
   function sparkline(points) {
     if (!points || points.length < 2) return "";
     const W = 300, H = 44, ps = points.map(p => p.price), min = Math.min(...ps), max = Math.max(...ps), t0 = points[0].at, t1 = points[points.length - 1].at;
@@ -410,10 +411,10 @@
   }
   function historyView(title, h, unit) {
     const v = VERDICT[h.verdict] || VERDICT.few;
-    return `<h2 id="drawer-title">تاريخ السعر</h2><p class="muted" style="margin:0">${esc(title)}</p>
+    return `<h2 id="drawer-title">${tx("تاريخ السعر")}</h2><p class="muted" style="margin:0">${esc(title)}</p>
       <div class="panel panel-pad" style="display:grid;gap:10px"><span class="verdict ${v[0]}">${v[1]}</span>${sparkline(h.points)}
-        <div class="kv"><div><div class="lbl">السعر الحين</div><b class="num">${sar(h.current)}</b></div><div><div class="lbl">أرخص شي</div><b class="num">${sar(h.min)}</b></div><div><div class="lbl">المعتاد</div><b class="num">${sar(h.median)}</b></div><div><div class="lbl">أغلى شي</div><b class="num">${sar(h.max)}</b></div></div>
-        <p class="small muted" style="margin:0">${h.demo ? "تاريخ تجريبي للعرض. " : ""}دروب يحفظ كل سعر يشوفه وأنت تدوّر أو لما يفحص متابعاتك، فكل ما استخدمته أكثر صار الحكم أدق. ${unit || ""}</p></div>`;
+        <div class="kv"><div><div class="lbl">${tx("السعر الحين")}</div><b class="num">${sar(h.current)}</b></div><div><div class="lbl">${tx("أرخص شي")}</div><b class="num">${sar(h.min)}</b></div><div><div class="lbl">${tx("المعتاد")}</div><b class="num">${sar(h.median)}</b></div><div><div class="lbl">${tx("أغلى شي")}</div><b class="num">${sar(h.max)}</b></div></div>
+        <p class="small muted" style="margin:0">${h.demo ? tx("تاريخ تجريبي للعرض. ") : ""}${tx("دروب يحفظ كل سعر يشوفه وأنت تدوّر أو لما يفحص متابعاتك، فكل ما استخدمته أكثر صار الحكم أدق.")} ${unit || ""}</p></div>`;
   }
 
   // ------------------------------------------------------------------ flights pricing helpers shared by pages
@@ -426,7 +427,16 @@
   const perGroup = (price, p) => Math.round(price * p.adults + price * 0.75 * p.children + price * 0.1 * p.infants);
 
   // ------------------------------------------------------------------ navigation + router
+  function bindPrefs() {
+    const ls = $("#lang-sel"), cs = $("#cur-sel");
+    ls.value = I18N.LANG;
+    ls.addEventListener("change", () => I18N.setLang(ls.value));
+    cs.innerHTML = Object.keys(I18N.CURRENCIES).map(c => `<option value="${c}" title="${esc(I18N.CUR_NAMES[c][I18N.LANG === "en" ? 1 : 0])}">${c} · ${esc(I18N.CURRENCIES[c][I18N.RTL ? 0 : 1])}</option>`).join("");
+    cs.value = I18N.CUR;
+    cs.addEventListener("change", () => { I18N.setCur(cs.value); route(); toast(tx("العملة") + ": " + I18N.CUR_NAMES[cs.value][I18N.LANG === "en" ? 1 : 0]); });
+  }
   function bindNav() {
+    bindPrefs();
     const rail = $("#rail"), scrim = $("#scrim"), btn = $("#menu-btn");
     const set = open => { rail.classList.toggle("open", open); scrim.classList.toggle("show", open); btn.setAttribute("aria-expanded", open); };
     btn.addEventListener("click", () => set(!rail.classList.contains("open")));
@@ -439,7 +449,7 @@
     const page = PAGES[name] ? name : "home";
     $$("#route .station").forEach(a => a.setAttribute("aria-current", a.dataset.tab === page ? "page" : "false"));
     const st = $(`#route .station[data-tab="${page}"] .st-name`);
-    $("#menu-label").textContent = st ? st.textContent : "الأقسام";
+    $("#menu-label").textContent = st ? st.textContent : tx("الأقسام");
     cleanup.forEach(f => { try { f(); } catch (e) { /* ignore */ } }); cleanup = [];
     const old = $("#view"), fresh = old.cloneNode(false); old.replaceWith(fresh);
     notice();

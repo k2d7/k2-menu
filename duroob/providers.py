@@ -382,6 +382,7 @@ def serp_hotels(key, query, chk_in, chk_out, adults, children_ages, sort=None, f
             "stars": p.get("extracted_hotel_class"),
             "lat": gps.get("latitude"), "lng": gps.get("longitude"),
             "image": imgs[0].get("thumbnail") if imgs else None,
+            "images": [i.get("thumbnail") or i.get("original_image") for i in imgs[:8] if i.get("thumbnail") or i.get("original_image")],
             "url": p.get("link"),
             "night": round(night),
             "total": round(_num(tot.get("extracted_lowest") or tot.get("lowest")) or 0) or None,

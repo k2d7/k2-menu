@@ -215,7 +215,20 @@ def _marker(link, cfg):
 
 
 def api_places(q, body):
-    return P.places(q.get("term", ""))
+    return P.places(q.get("term", ""), "en" if q.get("locale") == "en" else "ar")
+
+
+def api_fx(q, body):
+    """Units of each currency per 1 SAR, refreshed twice a day (pegged Gulf rates if offline)."""
+    want = ["SAR", "AED", "KWD", "QAR", "BHD", "OMR", "USD", "EUR", "GBP", "EGP", "TRY", "MYR"]
+    try:
+        d = P.http_json("https://open.er-api.com/v6/latest/USD", ttl=43200, timeout=15)
+        usd = d.get("rates") or {}
+        if usd.get("SAR"):
+            return {"rates": {c: usd[c] / usd["SAR"] for c in want if usd.get(c)}, "live": True}
+    except P.SourceError:
+        pass
+    return {"rates": None, "live": False}
 
 
 def api_flights_search(q, body):
@@ -868,6 +881,7 @@ def api_watch_check(q, body):
 ROUTES = {
     "settings": api_settings,
     "places": api_places,
+    "fx": api_fx,
     "flights/search": api_flights_search,
     "flights/calendar": api_flights_calendar,
     "flights/anywhere": api_flights_anywhere,

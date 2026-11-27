@@ -3,11 +3,11 @@
 (function () {
   const META = window.DUROOB_META;
   let CITIES = [], AIRPORTS = {};
-  const SITES = ["Booking.com", "Agoda.com", "Expedia", "Hotels.com", "Trip.com", "موقع الفندق"];
-  const NAMES = ["فندق الواحة", "نزل القافلة", "برج النخيل", "دار الضيافة", "فندق المنارة", "أجنحة السراب", "فندق الديرة",
-    "منتجع الكثبان", "فندق الريم", "نُزل البخور", "فندق درب الحرير", "شقق الياسمين", "فندق الفنار", "أجنحة اللؤلؤ",
-    "فندق السدو", "منتجع الشاطئ الذهبي", "فندق النجمة", "دار الوفاء", "فندق باب المدينة", "شقق المرسى",
-    "فندق الأندلس", "قصر الضيافة", "أجنحة الهدى", "فندق الجوهرة"];
+  const SITES = ["Booking.com", "Agoda.com", "Expedia", "Hotels.com", "Trip.com", tx("موقع الفندق")];
+  const NAMES = [tx("فندق الواحة"), tx("نزل القافلة"), tx("برج النخيل"), tx("دار الضيافة"), tx("فندق المنارة"), tx("أجنحة السراب"), tx("فندق الديرة"),
+    tx("منتجع الكثبان"), tx("فندق الريم"), tx("نُزل البخور"), tx("فندق درب الحرير"), tx("شقق الياسمين"), tx("فندق الفنار"), tx("أجنحة اللؤلؤ"),
+    tx("فندق السدو"), tx("منتجع الشاطئ الذهبي"), tx("فندق النجمة"), tx("دار الوفاء"), tx("فندق باب المدينة"), tx("شقق المرسى"),
+    tx("فندق الأندلس"), tx("قصر الضيافة"), tx("أجنحة الهدى"), tx("فندق الجوهرة")];
   const EXTRA_AIRPORTS = META.homeAirports.map(a => ({ code: a.code, ar: a.name }));
 
   function hash(s) { let h = 2166136261; for (const c of String(s)) { h ^= c.charCodeAt(0); h = Math.imul(h, 16777619); } return h >>> 0; }
@@ -60,7 +60,7 @@
       let retAt = null;
       if (ret) { const h2 = Math.floor(r() * 24); retAt = `${ret}T${String(h2).padStart(2, "0")}:15:00+03:00`; }
       out.push({
-        source: "تجريبي", cached: true, demo: true, origin: o, destination: d, origin_airport: o, destination_airport: d,
+        source: tx("تجريبي"), cached: true, demo: true, origin: o, destination: d, origin_airport: o, destination_airport: d,
         price: Math.round(price / 5) * 5, airline: al, flight_number: String(100 + Math.floor(r() * 1800)),
         departure_at: dep, return_at: retAt, transfers, return_transfers: ret ? transfers : null,
         duration_to: dur, duration_back: ret ? dur + Math.round(r() * 40 - 20) : null, duration: ret ? dur * 2 : dur,
@@ -90,6 +90,32 @@
       TH: 240, SG: 620, JP: 520, KR: 420, HK: 560, CN: 360, VN: 200, MV: 1500, LK: 250, IN: 260, MA: 340, TN: 240, TZ: 420, KE: 380, ZA: 420, US: 820, AU: 620 };
     return t[c.country] || 400;
   }
+
+  // Illustrated hotel facades for the preview (real photos can't load inside it).
+  function facade(seed) {
+    const r = rnd("img" + seed), pick = a => a[Math.floor(r() * a.length)];
+    const skies = [["#bfe0f5", "#fdf1dc"], ["#f9d9b6", "#fdf3e6"], ["#c9d8f2", "#f6efe2"], ["#a9d3ee", "#eef6fb"]];
+    const walls = ["#efe3cc", "#f6f1e8", "#e3c39d", "#d8dee6", "#ead2b4", "#cfd9d2"];
+    const [s1, s2] = pick(skies), wall = pick(walls), trim = pick(["#b8892e", "#8b5a2b", "#6d7f95", "#a0653d"]);
+    const W = 320, H = 220, bw = 150 + Math.floor(r() * 90), bh = 105 + Math.floor(r() * 70), bx = (W - bw) / 2, by = H - 34 - bh;
+    let out = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${H}"><defs><linearGradient id="g" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${s1}"/><stop offset="1" stop-color="${s2}"/></linearGradient></defs>`;
+    out += `<rect width="${W}" height="${H}" fill="url(#g)"/><circle cx="${40 + r() * 240}" cy="${30 + r() * 20}" r="16" fill="#fff3c4" opacity=".9"/>`;
+    if (r() > .5) out += `<rect x="${bx + bw * .15}" y="${by - 28}" width="${bw * .22}" height="30" fill="${wall}" stroke="${trim}" stroke-width="1"/><path d="M${bx + bw * .15} ${by - 28} q${bw * .11} -22 ${bw * .22} 0" fill="${trim}"/>`;
+    out += `<rect x="${bx}" y="${by}" width="${bw}" height="${bh}" fill="${wall}" stroke="${trim}" stroke-width="1.5"/><rect x="${bx - 4}" y="${by - 6}" width="${bw + 8}" height="7" fill="${trim}"/>`;
+    const cols = Math.max(4, Math.floor(bw / 26)), rows = Math.max(3, Math.floor((bh - 40) / 24)), cw = bw / cols;
+    for (let i = 0; i < rows; i++) for (let j = 0; j < cols; j++) {
+      const x = bx + j * cw + cw * .25, y = by + 10 + i * 24, lit = r() > .72;
+      out += `<path d="M${x} ${y + 16} v-10 q${cw * .25} -8 ${cw * .5} 0 v10 z" fill="${lit ? "#ffd98a" : "#7f9bb5"}" opacity="${lit ? 1 : .75}"/>`;
+    }
+    out += `<path d="M${W / 2 - 16} ${H - 34} v-22 q16 -18 32 0 v22 z" fill="#6b4f36"/>`;
+    for (let k = 0, n = Math.floor(r() * 3); k < n; k++) {
+      const px = k % 2 ? bx + bw + 14 + r() * 20 : bx - 14 - r() * 20, ph = 40 + r() * 20;
+      out += `<path d="M${px} ${H - 34} q3 -${ph / 2} 0 -${ph}" stroke="#7a5a3a" stroke-width="4" fill="none"/>`;
+      out += `<g fill="#3f7a4a"><path d="M${px} ${H - 34 - ph} q-18 -2 -26 10 q14 -10 26 -10"/><path d="M${px} ${H - 34 - ph} q18 -2 26 10 q-14 -10 -26 -10"/><path d="M${px} ${H - 34 - ph} q-8 -14 -22 -14 q12 4 22 14"/><path d="M${px} ${H - 34 - ph} q8 -14 22 -14 q-12 4 -22 14"/></g>`;
+    }
+    out += `<rect y="${H - 34}" width="${W}" height="34" fill="#e2cfa6"/><rect y="${H - 34}" width="${W}" height="3" fill="#cfb78a"/></svg>`;
+    return "data:image/svg+xml," + encodeURIComponent(out);
+  }
   function hotelsOf(cid) {
     const c = CITIES.find(x => x.id === cid); if (!c) return [];
     const r = rnd("h" + cid), lm = c.landmarks[0];
@@ -97,9 +123,9 @@
       const stars = 3 + Math.floor(r() * 3), rating = Math.round((3.5 + r() * 1.4) * 10) / 10;
       const spread = c.id === "g293993" || c.id === "g298551" ? 0.018 : 0.045;
       const lat = lm.lat + (r() - .5) * spread * (1 + i / 12), lng = lm.lng + (r() - .5) * spread * (1 + i / 12);
-      return { id: `${cid}-demo${i}`, name: `${n} ${c.ar}`, type: i % 7 === 3 ? "Apartment" : "Hotel", rating, reviews: Math.floor(80 + r() * 6000),
-        stars, lat, lng, image: null, url: null, breakfast: r() > .55, free_cancel: r() > .45, base: cityTier(c) * (0.55 + stars * 0.17) * (0.7 + r() * 0.6),
-        demo: true, source: "تجريبي" };
+      return { id: `${cid}-demo${i}`, name: `${n} ${L(c)}`, type: i % 7 === 3 ? "Apartment" : "Hotel", rating, reviews: Math.floor(80 + r() * 6000),
+        stars, lat, lng, image: facade(cid + i), url: null, breakfast: r() > .55, free_cancel: r() > .45, base: cityTier(c) * (0.55 + stars * 0.17) * (0.7 + r() * 0.6),
+        demo: true, source: tx("تجريبي") };
     });
   }
   function hotelNight(h, day, perRoom) {
@@ -155,9 +181,9 @@
     },
     "places"(q) {
       const t = (q.term || "").trim().toLowerCase(); if (!t) return [];
-      const list = CITIES.filter(c => c.iata).map(c => ({ code: c.iata, name: c.ar, city: c.ar, type: "city", country: c.country, country_code: c.country, lat: c.lat, lng: c.lng }))
-        .concat(EXTRA_AIRPORTS.map(a => ({ code: a.code, name: a.ar, city: a.ar, type: "city", country: "السعودية", country_code: "SA" })))
-        .concat(Object.entries(AIRPORTS).map(([code, a]) => ({ code, name: a.ar, city: a.ar, type: "airport", country: a.cc, country_code: a.cc })));
+      const list = CITIES.filter(c => c.iata).map(c => ({ code: c.iata, name: L(c), city: L(c), type: "city", country: c.country, country_code: c.country, lat: c.lat, lng: c.lng }))
+        .concat(EXTRA_AIRPORTS.map(a => ({ code: a.code, name: L(a), city: L(a), type: "city", country: tx("السعودية"), country_code: "SA" })))
+        .concat(Object.entries(AIRPORTS).map(([code, a]) => ({ code, name: L(a), city: L(a), type: "airport", country: a.cc, country_code: a.cc })));
       const seen = new Set();
       return list.filter(p => (p.name.includes(t) || p.code.toLowerCase().startsWith(t) || (CITIES.find(c => c.iata === p.code) || { en: "" }).en.toLowerCase().startsWith(t)) && !seen.has(p.code) && seen.add(p.code)).slice(0, 8);
     },
@@ -198,7 +224,7 @@
     },
     "hotels/search"(q) {
       const per = roomQuery(q);
-      return { hotels: hotelSearch(q), nights: Math.round((new Date(q.checkout) - new Date(q.checkin)) / 864e5), per_room: per.per_room, rooms: per.rooms, source: "تجريبي", demo: true };
+      return { hotels: hotelSearch(q), nights: Math.round((new Date(q.checkout) - new Date(q.checkin)) / 864e5), per_room: per.per_room, rooms: per.rooms, source: tx("تجريبي"), demo: true };
     },
     "hotels/rates"(q) {
       const cid = q.id.split("-demo")[0], h = hotelsOf(cid).find(x => x.id === q.id);
@@ -280,7 +306,7 @@
       const nm = Number(q.makkah || 4), nd = Number(q.madinah || 0), total = nm + nd, first = q.first || "makkah";
       const inAp = nd === 0 ? "JED" : first === "makkah" ? "JED" : "MED", outAp = nd === 0 ? "JED" : first === "makkah" ? "MED" : "JED";
       const mk = hotelsOf("g293993").slice(0, 8), md = hotelsOf("g298551").slice(0, 8);
-      const crowd = day => { let lv = 0; const why = []; for (const s of (window.DUROOB_SEASONS || META.seasons)) if (day >= s.from && day <= s.to) { if (s.kind === "ramadan") { const l = day >= addDays(s.to, -9); lv = Math.max(lv, l ? 3 : 2); why.push(l ? "العشر الأواخر" : "رمضان"); } else if (s.kind === "hajj") { lv = 3; why.push("موسم الحج"); } else { lv = Math.max(lv, s.kind === "holiday" ? 2 : 1); why.push(s.name); } } if ([4, 5].includes(dow(day))) lv = Math.max(lv, 1); return { level: lv, why: Array.from(new Set(why)) }; };
+      const crowd = day => { let lv = 0; const why = []; for (const s of (window.DUROOB_SEASONS || META.seasons)) if (day >= s.from && day <= s.to) { if (s.kind === "ramadan") { const l = day >= addDays(s.to, -9); lv = Math.max(lv, l ? 3 : 2); why.push(l ? tx("العشر الأواخر") : tx("رمضان")); } else if (s.kind === "hajj") { lv = 3; why.push(tx("موسم الحج")); } else { lv = Math.max(lv, s.kind === "holiday" ? 2 : 1); why.push(s.name); } } if ([4, 5].includes(dow(day))) lv = Math.max(lv, 1); return { level: lv, why: Array.from(new Set(why)) }; };
       const cands = monthDays(q.month).map(s => { const e = addDays(s, total), fi = q.origin === inAp ? null : cheapest(q.origin, inAp, s), fo = q.origin === outAp ? null : cheapest(outAp, q.origin, e); return { start: s, end: e, in: fi, out: fo, flights: (fi ? fi.price : 0) + (fo ? fo.price : 0), crowd: crowd(s) }; });
       const ranked = cands.sort((a, b) => a.flights * (1 + 0.15 * a.crowd.level) - b.flights * (1 + 0.15 * b.crowd.level)).slice(0, 3);
       const best = (hs, ci, co, center) => hs.map(h => ({ id: h.id, name: h.name, rating: h.rating, km: Math.round(km2(h.lat, h.lng, center[0], center[1]) * 100) / 100, night: ratesFor(h, ci, co, 2)[0].night, site: ratesFor(h, ci, co, 2)[0].site })).sort((a, b) => a.night - b.night)[0];
@@ -288,6 +314,7 @@
         return Object.assign(w, { makkah: best(mk, mkIn, addDays(mkIn, nm), [21.4225, 39.8262]), madinah: nd ? best(md, mdIn, addDays(mdIn, nd), [24.4672, 39.6111]) : null, train: nd ? 160 : 0, in_airport: inAp, out_airport: outAp }); });
       return { windows, nights: { makkah: nm, madinah: nd }, rooms: Number(q.rooms || 1), per_room: 2, demo: true };
     },
+    "fx"() { return { rates: null, live: false }; },
     "notify/test"() { return { ok: true, demo: true }; },
     "autostart"() { return { autostart: false }; },
     "history"(q) {
