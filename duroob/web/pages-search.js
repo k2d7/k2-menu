@@ -286,7 +286,8 @@
     const fee = baggage()[t.airline];
     return `<article class="panel fcard"><div class="legs">
         ${leg(dep, hhmm(t.departure_at), t.origin_airport || t.origin, t.destination_airport || t.destination, t.duration_to, t.transfers, tx("الذهاب"), hhmm(t.arrival_at))}
-        ${t.return_at ? leg(ret, hhmm(t.return_at), t.destination_airport || t.destination, t.origin_airport || t.origin, t.duration_back, t.return_transfers, tx("العودة"), "") : ""}
+        ${t.return_at && hhmm(t.return_at) ? leg(ret, hhmm(t.return_at), t.destination_airport || t.destination, t.origin_airport || t.origin, t.duration_back, t.return_transfers, tx("العودة"), "") : ""}
+        ${t.return_at && !hhmm(t.return_at) ? `<div class="leg-ret small"><b>${tx("العودة")}</b> · ${esc(fmtDay(ret))} · <span dir="ltr">${esc(t.destination_airport || t.destination)} → ${esc(t.origin_airport || t.origin)}</span><br><span class="muted">${tx("تختار وقت رحلة العودة في صفحة الحجز.")}</span></div>` : ""}
         <div class="badges">${best ? tx('<span class="badge best">الأفضل</span>') : ""}${cheap ? tx('<span class="badge cheap">الأرخص</span>') : ""}${F.compare ? `<span class="badge">${tx("من")} ${esc(placeName(t.origin))}</span>` : ""}${t.combo ? `<span class="badge warn">${tx("تذكرتين: ذهاب وعودة منفصلة")}</span>` : ""}${t.near_date ? `<span class="badge">${tx("يوم قريب من تاريخك")}</span>` : ""}<span class="badge">${esc(t.demo ? tx("تجريبي") : t.source)}${t.cached && !t.demo ? tx(" · سعر محفوظ") : ""}</span>${t.flight_number ? `<span class="badge">${tx("رحلة")} ${esc(t.airline)}${esc(t.flight_number)}</span>` : ""}</div>
       </div>
       <div class="pricebox"><div class="price-big">${sar(bag ? gp.withBag : gp.total)}</div>
@@ -520,7 +521,7 @@
           ${!loadingRates && isG(h) && !rates.length ? `<p class="small muted">${tx("قوقل ما عرض أسعار مواقع لهالفندق بعددكم وتواريخكم. افتحه في قوقل للفنادق تحت.")}</p>` : ""}
           ${h.listNight && rates[0] && rates[0].night > h.listNight * 1.1 ? `<p class="small" style="margin:6px 0 0">${tx("قوقل كان يعرض في القائمة")} <b class="num">${sar(h.listNight)}</b> ${tx("لليلة، وهذا أقل سعر عنده. السعر الفعلي لعددكم في المواقع فوق.")}</p>` : ""}
           ${rates.length > 1 && rates[rates.length - 1].night > rates[0].night ? `<p class="small" style="margin:6px 0 0">${tx("الفرق بين أرخص وأغلى موقع")}: <b class="num">${sar((rates[rates.length - 1].night - rates[0].night) * ctx.nights * mult(h, ctx))}</b> ${tx("على كامل الإقامة.")}</p>` : ""}</section>
-        <section><h3 class="sec">${tx("الغرف المناسبة لعددكم")}</h3><div class="plan">${plans.map(pl => `<div class="plan-opt ${pl.main ? "main" : ""}"><span><b>${esc(pl.label)}</b><br><span class="small muted">${esc(pl.note)}</span></span><b class="num">${sar(pl.total)}</b></div>`).join("")}</div>
+        <section><h3 class="sec">${tx("الغرف المناسبة لعددكم")}</h3><div class="plan">${plans.map(pl => `<div class="plan-opt ${pl.main ? "pick" : ""}"><span><b>${esc(pl.label)}</b><br><span class="small muted">${esc(pl.note)}</span></span><b class="num">${sar(pl.total)}</b></div>`).join("")}</div>
           ${ctx.party.childAges.length ? `<p class="small muted" style="margin:6px 0 0">${tx("سياسة الأطفال (السكن المجاني أو السرير الإضافي) تختلف من فندق لفندق، تأكد منها في صفحة الحجز.")}</p>` : ""}</section>
         <section><h3 class="sec">${tx("شوفه في قوقل")}</h3><p class="small muted" style="margin:0 0 8px">${tx("قوقل ماب يعرض لك الفندق ومواقع الحجز وأسعارها مثل ما تعودت.")}</p>
           <div class="row"><a class="btn btn-ghost btn-sm" href="${esc(gMaps(h.name, ctx.city.en))}" target="_blank" rel="noopener">${ICON.map} ${tx("افتح في قوقل ماب")}</a>

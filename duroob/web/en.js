@@ -1042,5 +1042,6 @@ window.DUROOB_EN = {
 "شوف السعر الفعلي": "See the real price",
 "قوقل ما عرض أسعار مواقع لهالفندق بعددكم وتواريخكم. افتحه في قوقل للفنادق تحت.": "Google showed no booking-site prices for this hotel with your group and dates. Open it in Google Hotels below.",
 "قوقل كان يعرض في القائمة": "Google's list showed",
-"لليلة، وهذا أقل سعر عنده. السعر الفعلي لعددكم في المواقع فوق.": "a night, its lowest price. The real price for your group is in the sites above."
+"لليلة، وهذا أقل سعر عنده. السعر الفعلي لعددكم في المواقع فوق.": "a night, its lowest price. The real price for your group is in the sites above.",
+"تختار وقت رحلة العودة في صفحة الحجز.": "You pick the return flight time on the booking page."
 };

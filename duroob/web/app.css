@@ -408,7 +408,8 @@ input[type="range"] { width: 100%; accent-color: var(--gold-deep); }
 .drawer h2 { font: 700 22px/1.3 var(--f); margin: 0; }
 .plan { display: grid; gap: 8px; }
 .plan-opt { border: 1px solid var(--line); border-radius: 6px; padding: 10px 12px; display: flex; justify-content: space-between; gap: 10px; align-items: center; flex-wrap: wrap; }
-.plan-opt.main { border-color: var(--gold); background: var(--paper-2); }
+.leg-ret { padding: 8px 0 2px; border-top: 1px dashed var(--line); line-height: 1.7; }
+.plan-opt.pick { border-color: var(--gold); background: var(--paper-2); }
 
 /* ---------- loader: a caravan crossing the dunes */
 .caravan-loader { position: fixed; inset: 0; z-index: 70; display: grid; place-items: center; background: rgba(30, 24, 14, .25); backdrop-filter: blur(2px); padding: 16px; }
