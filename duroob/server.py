@@ -55,6 +55,10 @@ _last_ping = time.time()
 
 
 # ---------------------------------------------------------------- config + store
+_req = threading.local()  # website: keys the visitor saved in their own browser, sent with each request
+KEY_RE = re.compile(r"^[A-Za-z0-9_-]{8,128}$")
+
+
 def load_config():
     try:
         with open(CONFIG, encoding="utf-8") as f:
@@ -64,6 +68,9 @@ def load_config():
     if WEBSITE:
         env = lambda k: os.environ.get(k, "").strip()  # pasted keys often carry a stray space or newline
         cfg.update({"tp_token": env("TP_TOKEN"), "serp_key": env("SERP_KEY"), "tp_marker": env("TP_MARKER")})
+        for k, v in (getattr(_req, "keys", None) or {}).items():
+            if v:
+                cfg[k] = v
     return cfg
 
 
@@ -1117,6 +1124,9 @@ class Handler(BaseHTTPRequestHandler):
             if body is not None and self.headers.get("X-Duroob") != "1":
                 return self._send(403, {"error": "forbidden"})
             _last_ping = time.time()
+            if WEBSITE:
+                hk = {"tp_token": self.headers.get("X-TP-Token", ""), "serp_key": self.headers.get("X-Serp-Key", "")}
+                _req.keys = {k: v.strip() for k, v in hk.items() if KEY_RE.match(v.strip())}
             name = path[5:].strip("/")
             q = {k: v[-1] for k, v in urllib.parse.parse_qs(url.query).items()}
             if name == "ping":

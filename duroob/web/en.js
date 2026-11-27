@@ -1043,5 +1043,8 @@ window.DUROOB_EN = {
 "قوقل ما عرض أسعار مواقع لهالفندق بعددكم وتواريخكم. افتحه في قوقل للفنادق تحت.": "Google showed no booking-site prices for this hotel with your group and dates. Open it in Google Hotels below.",
 "قوقل كان يعرض في القائمة": "Google's list showed",
 "لليلة، وهذا أقل سعر عنده. السعر الفعلي لعددكم في المواقع فوق.": "a night, its lowest price. The real price for your group is in the sites above.",
-"تختار وقت رحلة العودة في صفحة الحجز.": "You pick the return flight time on the booking page."
+"تختار وقت رحلة العودة في صفحة الحجز.": "You pick the return flight time on the booking page.",
+"في الموقع، المفاتيح تنحفظ في متصفحك على هالجهاز بس، وتنرسل مع كل بحث، والسيرفر ما يحفظها. إذا فتحت دروب من جهاز ثاني، حطها فيه مرة وحدة.": "On the website, keys are saved in this browser on this device only and sent with each search; the server doesn't keep them. On another device, enter them there once.",
+"المفتاح شكله ناقص. انسخه كامل والصقه مرة ثانية.": "The key looks incomplete. Copy all of it and paste it again.",
+"ما قدرنا نستخدم المفتاح. تأكد إنك نسخته كامل.": "We couldn't use the key. Make sure you copied all of it."
 };

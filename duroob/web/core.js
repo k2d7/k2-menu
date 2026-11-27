@@ -95,11 +95,16 @@
   const baggage = () => S.baggage || META.baggage;
   function applyTheme(t) { if (t === "dark" || t === "light") document.documentElement.setAttribute("data-theme", t); else document.documentElement.removeAttribute("data-theme"); }
 
+  // Website: price-source keys live in this browser only and go with each request; the server never stores them.
+  function webKeys() { try { return JSON.parse(I18N.store.get("keys") || "{}") || {}; } catch (e) { return {}; } }
+  function setWebKey(kind, val) { const k = webKeys(); if (val) k[kind] = val; else delete k[kind]; I18N.store.set("keys", JSON.stringify(k)); }
   async function api(path, params, body) {
     const sp = Object.fromEntries(Object.entries(params || {}).filter(([, v]) => v !== undefined && v !== null && v !== "").map(([k, v]) => [k, String(v)]));
     if (X.mode === "demo") return window.DuroobDemo.call(path, sp, body);
     const q = Object.keys(sp).length ? "?" + new URLSearchParams(sp).toString() : "";
-    const opt = body !== undefined ? { method: "POST", headers: { "Content-Type": "application/json", "X-Duroob": "1" }, body: JSON.stringify(body) } : {};
+    const headers = {};
+    if (X.web) { const k = webKeys(); if (k.tp) headers["X-TP-Token"] = k.tp; if (k.serp) headers["X-Serp-Key"] = k.serp; }
+    const opt = body !== undefined ? { method: "POST", headers: Object.assign(headers, { "Content-Type": "application/json", "X-Duroob": "1" }), body: JSON.stringify(body) } : { headers };
     const r = await fetch("api/" + path + q, opt);
     const data = await r.json().catch(() => ({ error: tx("رد غير مفهوم من البرنامج") }));
     if (!r.ok) {
@@ -126,7 +131,7 @@
   function notice() {
     const el = $("#notice"); let html = "";
     if (X.mode === "demo") html = tx("<b>نسخة تجربة.</b> كل الأسعار هنا تجريبية للعرض فقط. الأسعار الحقيقية تشتغل في نسخة الكمبيوتر.");
-    else if (!S.settings.has_tp) html = `<b>${tx("الطيران يعرض أسعار تجريبية")}</b> ${tx("لين تحط مفتاح Travelpayouts المجاني. الفنادق أسعارها حقيقية.")} ${X.web ? "" : `<a href="#setup">${tx("حط المفتاح")}</a>`}`;
+    else if (!S.settings.has_tp) html = `<b>${tx("الطيران يعرض أسعار تجريبية")}</b> ${tx("لين تحط مفتاح Travelpayouts المجاني. الفنادق أسعارها حقيقية.")} <a href="#setup">${tx("حط المفتاح")}</a>`;
     el.innerHTML = html ? `<div class="wrap">${html}</div>` : ""; el.hidden = !html;
   }
   function openDrawer(html) { $("#drawer-body").innerHTML = html; $("#drawer").hidden = false; document.body.style.overflow = "hidden"; $(".drawer-x").focus(); }
@@ -524,7 +529,7 @@
     waLink, hero, party, partyLabel, partyParams, travelersField, bindTravelers, placeField, bindPlace, codeOf, placeName, cityByIata, countryOfCode,
     cityField, bindCity, climateOf, feel, visaOf, visaCheckLink, dailyCost, infoStrip, seasons, seasonsOn, baggage, applySeasons, applyTheme, levelOf,
     monthCalendar, yearCalendar, legend, bindCalNav, isFav, toggleFav, addWatch, remember, autoCheckWatches, addToTrip, gFlights, gMaps, gHotels, otaLink,
-    VERDICT, sparkline, historyView, groupPrice, perGroup, go, HM, HD, actionsDrawer, more, setAutoRun, takeAutoRun, placeDrawer, showCard,
+    VERDICT, sparkline, historyView, groupPrice, perGroup, go, HM, HD, actionsDrawer, more, setAutoRun, takeAutoRun, placeDrawer, showCard, webKeys, setWebKey,
     page(name, fn) { PAGES[name] = fn; },
     onLeave(fn) { cleanup.push(fn); },
     start() { boot().catch(e => { $("#view").innerHTML = errorBox(e); }); }

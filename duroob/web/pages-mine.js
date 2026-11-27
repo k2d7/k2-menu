@@ -300,7 +300,8 @@
         <div class="row"><button type="button" class="btn btn-ghost" id="s-test">${tx("جرّب التنبيه")}</button>
           <label class="check"><input type="checkbox" id="s-alerts" ${(X.web ? S.prefs.alertsOn : st.alerts_on) ? "checked" : ""}> ${tx("فعّل تنبيهات الجوال")}</label>
           ${X.web ? `<span class="small muted">${tx("في الموقع، الفحص يصير وأنت فاتح الموقع. للمراقبة الدائمة استخدم نسخة الكمبيوتر.")}</span>` : st.can_autostart ? `<label class="check"><input type="checkbox" id="s-auto" ${st.autostart ? "checked" : ""}> ${tx("شغّل المراقبة مع ويندوز")}</label>` : `<span class="small muted">${tx("«المراقبة مع ويندوز» تظهر في نسخة الويندوز.")}</span>`}</div></section>
-      ${X.web ? "<div hidden>" : `<details class="panel panel-pad keys"><summary class="sec">${tx("مفاتيح مصادر الأسعار")}</summary><div style="display:grid;gap:14px;margin-top:12px">`}
+      <details class="panel panel-pad keys" ${X.web && !st.has_tp ? "open" : ""}><summary class="sec">${tx("مفاتيح مصادر الأسعار")}</summary><div style="display:grid;gap:14px;margin-top:12px">
+      ${X.web ? `<p class="small muted" style="margin:0">${tx("في الموقع، المفاتيح تنحفظ في متصفحك على هالجهاز بس، وتنرسل مع كل بحث، والسيرفر ما يحفظها. إذا فتحت دروب من جهاز ثاني، حطها فيه مرة وحدة.")}</p>` : ""}
       <section class="panel panel-pad" style="display:grid;gap:12px"><h2 class="sec"><span class="status-dot ${st.has_tp ? "on" : ""}"></span> ${tx("أسعار الطيران · Travelpayouts (مجاني)")}</h2>
         <ol class="steps small"><li>${tx("افتح")} <a href="https://www.travelpayouts.com/" target="_blank" rel="noopener">travelpayouts.com</a> ${tx("وسجّل حساب مجاني بإيميلك.")}</li><li>${tx("إذا سألك عن مشروعك، جاوب إنه برنامج شخصي للبحث عن أسعار الطيران.")}</li>
           <li>${tx("من قائمة البرامج (Programs) دوّر على")} <b>Aviasales</b> ${tx("واضغط انضمام (Join).")}</li><li>${tx("روح لصفحة")} <b>API</b> ${tx("في حسابك (غالباً من قائمة Tools)، وانسخ")} <b>API token</b>.</li><li>${tx("الصقه هنا واضغط «احفظ». إذا تغيّرت أسماء القوائم، دوّر في الموقع على «API token».")}</li></ol>
@@ -309,8 +310,8 @@
         <p class="small muted" style="margin:0">${tx("يجيب نفس الأسعار اللي تشوفها في قوقل ماب لكل موقع حجز، ويحسب أعمار الأطفال بدقة، ويضيف فلتر النجوم والإلغاء المجاني. الخطة المجانية فيها حوالي 250 بحث بالشهر.")}</p>
         <ol class="steps small"><li>${tx("سجّل مجاناً في")} <a href="https://serpapi.com/users/sign_up" target="_blank" rel="noopener">serpapi.com</a>.</li><li>${tx("من لوحة التحكم (Dashboard) انسخ")} <b>Private API Key</b>.</li><li>${tx("الصقه هنا واحفظ.")}</li></ol>
         <div class="row"><div class="field grow"><label for="s-serp">SerpApi key</label><input class="input" id="s-serp" type="password" placeholder="${st.has_serp ? tx("محفوظ ✓") : tx("اختياري")}"></div><button type="button" class="btn btn-primary" data-savekey="serp">${tx("احفظ")}</button></div>
-        <div class="checks"><label class="check"><input type="checkbox" id="s-sh" ${st.use_serp_hotels !== false ? "checked" : ""}> ${tx("استخدمه للفنادق")}</label><label class="check"><input type="checkbox" id="s-sf" ${st.use_serp_flights ? "checked" : ""}> ${tx("استخدمه للطيران بالتاريخ المحدد (أسعار مباشرة)")}</label></div></section>
-      ${X.web ? "</div>" : "</div></details>"}
+        <div class="checks" ${X.web ? "hidden" : ""}><label class="check"><input type="checkbox" id="s-sh" ${st.use_serp_hotels !== false ? "checked" : ""}> ${tx("استخدمه للفنادق")}</label><label class="check"><input type="checkbox" id="s-sf" ${st.use_serp_flights ? "checked" : ""}> ${tx("استخدمه للطيران بالتاريخ المحدد (أسعار مباشرة)")}</label></div></section>
+      </div></details>
       <details class="panel panel-pad keys"><summary class="sec">${tx("إعدادات متقدمة")}</summary><div style="display:grid;gap:14px;margin-top:12px">
       ${st.data_dir && !X.web ? `<p class="small muted" style="margin:0">${tx("بياناتك محفوظة على جهازك في")}: <code>${esc(st.data_dir)}</code></p>` : X.web ? `<p class="small muted" style="margin:0">${tx("بياناتك محفوظة في متصفحك على هالجهاز بس.")}</p>` : ""}
       <section style="display:grid;gap:12px"><h2 class="sec">${tx("المواسم على التقويم")}</h2>
@@ -331,7 +332,12 @@
       if (b.dataset.savekey) {
         const isTp = b.dataset.savekey === "tp", val = $(isTp ? "#s-tp" : "#s-serp").value.trim();
         if (!val) return toast(tx("الصق المفتاح أول."));
-        S.settings = await api("settings", null, isTp ? { tp_token: val } : { serp_key: val }); toast(tx("انحفظ المفتاح ✓"), "good"); again();
+        if (X.web) {
+          if (!/^[A-Za-z0-9_-]{8,128}$/.test(val)) return toast(tx("المفتاح شكله ناقص. انسخه كامل والصقه مرة ثانية."));
+          D.setWebKey(isTp ? "tp" : "serp", val); S.settings = await api("settings");
+          if (!(isTp ? S.settings.has_tp : S.settings.has_serp)) return toast(tx("ما قدرنا نستخدم المفتاح. تأكد إنك نسخته كامل."));
+        } else S.settings = await api("settings", null, isTp ? { tp_token: val } : { serp_key: val });
+        toast(tx("انحفظ المفتاح ✓"), "good"); again();
       }
       if (b.id === "s-copy") { try { await navigator.clipboard.writeText(topic); toast(tx("انسخ ✓")); } catch (err) { const r = document.createRange(); r.selectNodeContents($("#s-topic")); getSelection().removeAllRanges(); getSelection().addRange(r); toast(tx("حددته لك، انسخه")); } }
       if (b.id === "s-test") {
