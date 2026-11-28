@@ -600,3 +600,4 @@ details.keys[open] > summary::after { content: "−"; }
   input, select, textarea, .input, select.input, textarea.input, .prefs .input, .ask-row input { font-size: 16px !important; }
 }
 button, a, input, select, textarea, label, summary { touch-action: manipulation; }
+.warn-text { color: var(--high); font-weight: 600; }

@@ -1066,5 +1066,11 @@ window.DUROOB_EN = {
 "أرسل بالواتساب": "Send on WhatsApp",
 "انسخ الرابط": "Copy link",
 "انسخ ✓ أرسله لأهلك": "Copied ✓ Send it to your family",
-"انسخ الرابط:": "Copy the link:"
+"انسخ الرابط:": "Copy the link:",
+"باقي لك": "You have",
+"بحث من": "searches left of",
+"هالشهر": "this month",
+"قرب يخلص، ولما يخلص دروب يرجع للمصدر المجاني": "almost used up; when it runs out Duroob goes back to the free source",
+"باقي": "left:",
+"بحث قوقل": "Google searches"
 };

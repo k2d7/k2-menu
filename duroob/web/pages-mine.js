@@ -304,7 +304,7 @@
         <div class="row"><button type="button" class="btn btn-ghost" id="s-test">${tx("جرّب التنبيه")}</button>
           <label class="check"><input type="checkbox" id="s-alerts" ${(X.web ? S.prefs.alertsOn : st.alerts_on) ? "checked" : ""}> ${tx("فعّل تنبيهات الجوال")}</label>
           ${X.web ? `<span class="small muted">${tx("في الموقع، الفحص يصير وأنت فاتح الموقع. للمراقبة الدائمة استخدم نسخة الكمبيوتر.")}</span>` : st.can_autostart ? `<label class="check"><input type="checkbox" id="s-auto" ${st.autostart ? "checked" : ""}> ${tx("شغّل المراقبة مع ويندوز")}</label>` : `<span class="small muted">${tx("«المراقبة مع ويندوز» تظهر في نسخة الويندوز.")}</span>`}</div></section>
-      <details class="panel panel-pad keys" ${X.web && !st.has_tp ? "open" : ""}><summary class="sec">${tx("مفاتيح مصادر الأسعار")}</summary><div style="display:grid;gap:14px;margin-top:12px">
+      <details class="panel panel-pad keys" ${X.web && !st.has_tp ? "open" : ""}><summary class="sec">${tx("مفاتيح مصادر الأسعار")}<span class="small muted" id="s-quota-sum" style="font-weight:500"></span></summary><div style="display:grid;gap:14px;margin-top:12px">
       ${X.web ? `<p class="small muted" style="margin:0">${tx("في الموقع، المفاتيح تنحفظ في متصفحك على هالجهاز بس، وتنرسل مع كل بحث، والسيرفر ما يحفظها. إذا فتحت دروب من جهاز ثاني، حطها فيه مرة وحدة.")}</p>` : ""}
       <section class="panel panel-pad" style="display:grid;gap:12px"><h2 class="sec"><span class="status-dot ${st.has_tp ? "on" : ""}"></span> ${tx("أسعار الطيران · Travelpayouts (مجاني)")}</h2>
         <ol class="steps small"><li>${tx("افتح")} <a href="https://www.travelpayouts.com/" target="_blank" rel="noopener">travelpayouts.com</a> ${tx("وسجّل حساب مجاني بإيميلك.")}</li><li>${tx("إذا سألك عن مشروعك، جاوب إنه برنامج شخصي للبحث عن أسعار الطيران.")}</li>
@@ -316,6 +316,7 @@
         <ol class="steps small"><li>${tx("سجّل مجاناً في")} <a href="https://serpapi.com/users/sign_up" target="_blank" rel="noopener">serpapi.com</a>.</li><li>${tx("من لوحة التحكم (Dashboard) انسخ")} <b>Private API Key</b>.</li><li>${tx("الصقه هنا واحفظ.")}</li></ol>
         <div class="row"><div class="field grow"><label for="s-serp">SerpApi key</label><input class="input" id="s-serp" type="password" placeholder="${st.has_serp ? tx("محفوظ ✓") : tx("اختياري")}"></div><button type="button" class="btn btn-primary" data-savekey="serp">${tx("احفظ")}</button></div>
         ${X.web && D.webKeys().serp ? `<button type="button" class="btn btn-ghost btn-sm" data-copykey="serp" style="justify-self:start">${tx("انسخ المفتاح المحفوظ")}</button>` : ""}
+        <p class="small" id="s-quota" style="margin:0" ${st.has_serp ? "" : "hidden"}></p>
         <div class="checks" ${X.web ? "hidden" : ""}><label class="check"><input type="checkbox" id="s-sh" ${st.use_serp_hotels !== false ? "checked" : ""}> ${tx("استخدمه للفنادق")}</label><label class="check"><input type="checkbox" id="s-sf" ${st.use_serp_flights ? "checked" : ""}> ${tx("استخدمه للطيران بالتاريخ المحدد (أسعار مباشرة)")}</label></div></section>
       </div></details>
       <details class="panel panel-pad keys"><summary class="sec">${tx("إعدادات متقدمة")}</summary><div style="display:grid;gap:14px;margin-top:12px">
@@ -333,6 +334,12 @@
       <section class="panel panel-pad" style="display:grid;gap:10px"><h2 class="sec">${tx("المجموعات المحفوظة")}</h2>
         <div class="chip-set">${(S.groups || []).map((g, i) => `<span class="chip">${esc(g.name)} · ${esc(partyLabel(party(g.people)))} <button type="button" class="icon-btn" style="width:24px;height:24px" data-gdel="${i}" aria-label="${tx("حذف")}">✕</button></span>`).join("") || tx('<span class="small muted">تحفظ المجموعات من زر «المسافرون» في أي بحث.</span>')}</div></section></div></details>`;
     const again = () => D.go("#setup");
+    // Google searches left this month (reading it is free)
+    if (st.has_serp && X.mode === "live") api("serp/usage").then(u => {
+      const el = $("#s-quota"); if (!el || !u.has || u.left == null) return;
+      const sum = $("#s-quota-sum"); if (sum) sum.textContent = ` · ${tx("باقي")} ${u.left} ${tx("بحث قوقل")}`;
+      el.innerHTML = `${tx("باقي لك")} <b class="num">${u.left}</b> ${tx("بحث من")} ${u.per_month} ${tx("هالشهر")}${u.left < 30 ? ` · <span class="warn-text">${tx("قرب يخلص، ولما يخلص دروب يرجع للمصدر المجاني")}</span>` : ""}`;
+    }).catch(() => {});
     root.addEventListener("click", async e => {
       const b = e.target.closest("button"); if (!b) return;
       if (b.id === "s-flink") { try { await navigator.clipboard.writeText(D.familyLink()); toast(tx("انسخ ✓ أرسله لأهلك"), "good"); } catch (err) { prompt(tx("انسخ الرابط:"), D.familyLink()); } }

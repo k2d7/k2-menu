@@ -1138,7 +1138,15 @@ def check_reminders():
         store_put("trips", trips)
 
 
+def api_serp_usage(q, body):
+    cfg = load_config()
+    if not cfg.get("serp_key"):
+        return {"has": False}
+    return dict(P.serp_account(cfg["serp_key"]), has=True)
+
+
 ROUTES = {
+    "serp/usage": api_serp_usage,
     "settings": api_settings,
     "places": api_places,
     "fx": api_fx,

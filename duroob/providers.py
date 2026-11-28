@@ -617,6 +617,20 @@ def serp_flights(key, origin, destination, depart, ret, adults, children, infant
     }
 
 
+def serp_account(key):
+    """Searches left this month (reading the account doesn't use a search)."""
+    if not key:
+        raise SourceError("NO_SERP_KEY")
+    try:
+        d = http_json("https://serpapi.com/account.json", {"api_key": key}, ttl=300, timeout=20)
+    except SourceError as e:
+        if "401" in str(e):
+            raise SourceError("مفتاح SerpApi غير صحيح. راجعه من صفحة الإعدادات.") from e
+        raise
+    return {"left": d.get("plan_searches_left", d.get("total_searches_left")), "used": d.get("this_month_usage"),
+            "per_month": d.get("searches_per_month")}
+
+
 # ---------------------------------------------------------------- phone alerts (ntfy.sh)
 def ntfy_send(topic, title, message, click=None, tags=None, server="https://ntfy.sh"):
     """Push a notification to the ntfy app on the user's phone (free, no account)."""
